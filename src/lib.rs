@@ -1,1 +1,1 @@
-mod rope;
+pub mod rope;
