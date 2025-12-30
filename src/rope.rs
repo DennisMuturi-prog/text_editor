@@ -10,7 +10,7 @@ pub struct Node {
 impl Node {
     fn new(str_content: String) -> Self {
         Self {
-            weight: 0,
+            weight: str_content.chars().count(),
             str_content: Some(str_content.into()),
             left: None,
             right: None,
@@ -86,7 +86,7 @@ pub fn split(rope: &mut Node, index: usize, cut_nodes: &mut Vec<Box<Node>>) -> (
         Some(ref content) => {
             if index == 0 {
                 return (rope.weight, true);
-            } else {
+            } else if index<content.chars().count() {
                 let full_content: Vec<char> = content.chars().collect();
                 let left_content = &full_content[0..index];
                 let left_str: String = left_content.iter().collect();
@@ -100,6 +100,9 @@ pub fn split(rope: &mut Node, index: usize, cut_nodes: &mut Vec<Box<Node>>) -> (
                 parent.weight = left_content.len();
                 *rope = parent;
                 return (right_content.len(), false);
+            }else{
+                return (0,false);
+                
             }
         }
         None => {
@@ -109,8 +112,8 @@ pub fn split(rope: &mut Node, index: usize, cut_nodes: &mut Vec<Box<Node>>) -> (
                         let (weight_to_reduce, should_delete_child) = split(left, index, cut_nodes);
                         rope.weight -= weight_to_reduce;
                         if should_delete_child {
-                            let right = rope.left.take();
-                            if let Some(cut_node) = right {
+                            let left = rope.left.take();
+                            if let Some(cut_node) = left {
                                 cut_nodes.push(cut_node);
                             }
                         }
@@ -165,14 +168,16 @@ fn concatenate(left: Box<Node>, right: Box<Node>) -> Node {
 }
 
 pub fn insert(index: usize, rope: Box<Node>, content: String) -> Node {
+    // println!("rope before {:?}",rope);
     let mut original_rope = rope;
     let mut cut_nodes = Vec::new();
 
-    let _ = split(&mut original_rope, index, &mut cut_nodes);
+    let cut = split(&mut original_rope, index, &mut cut_nodes);
+    // println!("cut is {}",cut.0);
 
     let new_merged_cut_nodes = {
         let content:Vec<char>=content.chars().collect();
-        println!("content len is {}",content.len());
+        // println!("content len is {}",content.len());
         let mut merged=build_rope(&content,0,content.len()-1);
         for cut_node in cut_nodes {
             merged = Box::new(concatenate(merged, cut_node));
