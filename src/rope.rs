@@ -16,12 +16,23 @@ impl Node {
             right: None,
         }
     }
+    fn is_balanced(&self)->bool{
+        self.weight>=fibonacci[self.depth()+2]
+        
+        
+    }
+    
+    fn depth(&self)->usize{
+        0
+    }
 
     pub fn right(&self) -> Option<&Box<Node>> {
         self.right.as_ref()
     }
 }
 const LEAF_LEN: usize = 3;
+const fibonacci: [usize; 30] = [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946, 17711, 28657, 46368, 75025, 121393, 196418, 317811, 514229];
+
 
 pub fn build_rope(content: &[char], starting: usize, ending: usize) -> Box<Node> {
     let mut rope = Node::default();
@@ -250,4 +261,8 @@ pub fn remove(index: usize, rope: Box<Node>, length_to_cut: usize) -> Box<Node> 
 
     let final_parent = concatenate(original_rope, third_new_merged_cut_nodes);
     Box::new(final_parent)
+}
+
+fn rebalance()->Box<Node>{
+    
 }
