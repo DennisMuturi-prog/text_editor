@@ -17,7 +17,7 @@ fn main() {
     println!("collected string is {}",collected_string);
     
     
-    let rope = remove(3,Box::new(rope),2);
+    let rope = remove(0,Box::new(rope),3);
     // println!("rope is {:?}", rope);
     let rope_len = find_length(&rope);
     println!("rope len is {}", rope_len);

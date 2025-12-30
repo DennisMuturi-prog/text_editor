@@ -40,7 +40,7 @@ pub fn build_rope(content: &[char], starting: usize, ending: usize) -> Box<Node>
     }
     Box::new(rope)
 }
-pub fn collect_string(node: &Node, content: &mut String) {
+pub fn collect_string(node: &Node, content: &mut String){
     match node.str_content {
         Some(ref current) => {
             content.push_str(&current);
@@ -172,7 +172,7 @@ pub fn insert(index: usize, rope: Box<Node>, content: String) -> Node {
     let mut original_rope = rope;
     let mut cut_nodes = Vec::new();
 
-    let cut = split(&mut original_rope, index, &mut cut_nodes);
+    let _ = split(&mut original_rope, index, &mut cut_nodes);
     // println!("cut is {}",cut.0);
 
     let new_merged_cut_nodes = {
@@ -224,6 +224,10 @@ pub fn remove(index: usize, rope: Box<Node>, length_to_cut: usize) -> Box<Node> 
     
     let mut cut_nodes = Vec::new();
     let _ = split(&mut new_merged_cut_nodes, length_to_cut, &mut cut_nodes);
+    
+    if cut_nodes.is_empty(){
+        return original_rope;
+    }
     
     let third_new_merged_cut_nodes = {
         let mut cut_nodes=cut_nodes.into_iter();
