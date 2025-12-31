@@ -3,7 +3,7 @@ use text_editor::rope::{build_rope, collect_string, find_length, index, insert, 
 fn main() {
     let content_str = "hello";
     let content: Vec<char> = content_str.chars().collect();
-    let rope = build_rope(&content, 0, content.len() - 1);
+    let (rope,_) = build_rope(&content, 0, content.len() - 1);
     println!("rope is {:?}", rope);
     let rope_len = find_length(&rope);
     println!("rope len is {}", rope_len);
