@@ -1,27 +1,17 @@
-use std::{cmp::max, fmt::{Display}, rc::Rc};
+use std::{borrow::Cow, cmp::max, io, rc::Rc};
 
-use display_tree::DisplayTree;
-#[derive(Debug, Default, Clone,DisplayTree)]
+use ptree::{Style, TreeBuilder, TreeItem, item::StringItem};
+
+#[derive(Debug, Default, Clone)]
 pub struct Node {
     weight: usize,
     str_content: Option<Rc<str>>,
-    left: Option<Box<Node>>,
-    right: Option<Box<Node>>,
+    left: Option<Box<Self>>,
+    right: Option<Box<Self>>,
     depth: usize,
     length: usize,
 }
 
-struct StrContent(Option<Rc<str>>);
-struct Child(Option<Box<Node>>);
-
-// impl Display for Option<Rc<str>>{
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self{
-//             Some(content) => write!(f,"{}",content),
-//             None => write!(f,"internal node"),
-//         }
-//     }
-// }
 
 impl Node {
     pub fn new(str_content: String) -> Self {
@@ -39,10 +29,85 @@ impl Node {
         self.length >= FIBONACCI[self.depth + 2]
     }
 
-    pub fn right(&self) -> Option<&Box<Node>> {
-        self.right.as_ref()
+    pub fn right(&self) -> Option<&Node> {
+        self.right.as_deref()
+    }
+    pub fn pretty_print(&self)->StringItem{
+        
+        match self.str_content{
+            Some(ref content) => {
+                let node_details=format!("leaf :'{}' weight:{} depth:{}",content,self.weight,self.depth);
+                let mut tree=TreeBuilder::new(node_details);
+                tree.build()
+
+            },
+            None => {
+                let node_details=format!("root weight:{} depth:{}",self.weight,self.depth);
+                let mut tree=TreeBuilder::new(node_details);
+                if let Some(ref left_child) = self.left {
+                    left_child.print_my_tree(&mut tree); 
+                } 
+                if let Some(ref right_child) = self.right {
+                    right_child.print_my_tree(&mut tree);
+                } 
+                tree.build()
+            }
+        }
+    }
+    pub fn print_my_tree(&self,print_tree:&mut TreeBuilder){
+        match self.str_content{
+            Some(ref content) => {
+                let node_details=format!("leaf :'{}' weight:{} depth:{}",content,self.weight,self.depth);
+                print_tree.add_empty_child(node_details);   
+            },
+            None => {
+                let node_details=format!("internal weight:{} depth:{}",self.weight,self.depth);
+                let print_tree=print_tree.begin_child(node_details);
+                if let Some(ref left_child) = self.left {
+                    left_child.print_my_tree(print_tree); 
+                } 
+                if let Some(ref right_child) = self.right {
+                    right_child.print_my_tree(print_tree);
+                } 
+                print_tree.end_child();  
+            }
+        };
+        
+        
+        
     }
 }
+
+impl TreeItem for Node {
+    type Child = Self;
+    fn write_self<W: io::Write>(&self, f: &mut W, style: &Style) -> io::Result<()> {
+        match self.str_content{
+            Some(ref content) => {
+                let node_details=format!("leaf :'{}' weight:{} depth:{}",content,self.weight,self.depth);
+                write!(f, "{}", style.paint(node_details))
+                
+                
+                
+            },
+            None => {
+                let node_details=format!("internal weight:{} depth:{}",self.weight,self.depth);
+                write!(f, "{}", style.paint(node_details))
+                
+            },
+        }
+    }
+    fn children(&self) -> Cow<'_,[Self::Child]> {
+        let mut children=Vec::new();
+        if let Some(ref left_child) = self.left {
+            children.push(left_child.as_ref().clone()); 
+        } 
+        if let Some(ref right_child) = self.right {
+            children.push(right_child.as_ref().clone()); 
+        } 
+        Cow::from(children)
+    }
+}
+
 const LEAF_LEN: usize = 3;
 const FIBONACCI: [usize; 28] = [
      1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765,
@@ -70,15 +135,15 @@ pub fn build_rope(content: &[char], starting: usize, ending: usize) -> (Box<Node
 pub fn collect_string(node: &Node, content: &mut String) {
     match node.str_content {
         Some(ref current) => {
-            content.push_str(&current);
+            content.push_str(current);
         }
         None => {
             if let Some(ref left_node) = node.left {
-                collect_string(&left_node, content);
+                collect_string(left_node, content);
             }
 
             if let Some(ref right_node) = node.right {
-                collect_string(&right_node, content);
+                collect_string(right_node, content);
             }
         }
     }
@@ -112,7 +177,7 @@ pub fn split(rope: &mut Node, index: usize, cut_nodes: &mut Vec<Box<Node>>) -> (
     match rope.str_content {
         Some(ref content) => {
             if index == 0 {
-                return (rope.weight, true, false);
+                (rope.weight, true, false)
             } else if index < content.chars().count() {
                 let full_content: Vec<char> = content.chars().collect();
                 let left_content = &full_content[0..index];
@@ -122,15 +187,17 @@ pub fn split(rope: &mut Node, index: usize, cut_nodes: &mut Vec<Box<Node>>) -> (
                 let left = Node::new(left_str);
                 let right = Node::new(right_str);
                 cut_nodes.push(Box::new(right));
-                let mut parent = Node::default();
-                parent.left = Some(Box::new(left));
-                parent.weight = left_content.len();
-                parent.length = left_content.len();
-                parent.depth = 1;
+                let parent = Node{
+                    weight: left_content.len(),
+                    left: Some(Box::new(left)),
+                    depth: 1,
+                    length: left_content.len(),
+                    ..Default::default()
+                };
                 *rope = parent;
-                return (right_content.len(), false, true);
+                (right_content.len(), false, true)
             } else {
-                return (0, false, false);
+                (0, false, false)
             }
         }
         None => {
@@ -228,13 +295,7 @@ pub fn concatenate(left: Box<Node>, right: Box<Node>) -> Node {
     //         }
     //     }
     // }
-    let mut new_node = Node::default();
-    new_node.depth = 1 + max(left.depth, right.depth);
-    new_node.length = left.length + right.length;
-    new_node.weight = left.length;
-    new_node.left = Some(left);
-    new_node.right = Some(right);
-    new_node
+    Node { depth: 1 + max(left.depth, right.depth), length: left.length + right.length, weight: left.length, left: Some(left), right: Some(right), ..Default::default() }
 }
 
 pub fn insert(index: usize, rope: Box<Node>, content: String) -> Node {
@@ -255,8 +316,7 @@ pub fn insert(index: usize, rope: Box<Node>, content: String) -> Node {
         merged
     };
 
-    let final_parent = concatenate(original_rope, new_merged_cut_nodes);
-    final_parent
+    concatenate(original_rope, new_merged_cut_nodes)
 }
 
 pub fn remove(index: usize, rope: Box<Node>, length_to_cut: usize) -> Box<Node> {
@@ -362,37 +422,3 @@ pub fn rebalance(node: Box<Node>) -> Box<Node> {
     }
     result.unwrap()
 }
-
-
-pub fn print_tree_horizontal(node: &Box<Node>, prefix: String, is_tail: bool) {
-    // Print current node
-    let content = node
-        .str_content
-        .as_deref()
-        .unwrap_or("[Node]");
-    println!(
-        "{}{}── {} (len={}, depth={})",
-        prefix,
-        if is_tail { "└" } else { "├" },
-        content,
-        node.length,
-        node.depth
-    );
-
-    // Prepare new prefix for children
-    let new_prefix = format!("{}{}", prefix, if is_tail { "    " } else { "│   " });
-
-    let children = [node.left.as_ref(), node.right.as_ref()]
-        .iter()
-        .filter_map(|c| *c)
-        .collect::<Vec<_>>();
-
-    for (i, child) in children.iter().enumerate() {
-        print_tree_horizontal(
-            child,
-            new_prefix.clone(),
-            i == children.len() - 1,
-        );
-    }
-}
-
