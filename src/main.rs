@@ -1,27 +1,43 @@
-use text_editor::rope::{build_rope, collect_string, find_length, index, insert, remove};
+use std::io::{self, Write};
+
+use text_editor::rope::{Node, build_rope, collect_string, concatenate, find_length, index, insert, print_tree_horizontal, rebalance, remove};
 
 fn main() {
-    let content_str = "hello";
-    let content: Vec<char> = content_str.chars().collect();
-    let (rope,_) = build_rope(&content, 0, content.len() - 1);
-    println!("rope is {:?}", rope);
-    let rope_len = find_length(&rope);
-    println!("rope len is {}", rope_len);
+    let a_node=Node::new("a".to_string());
+    let bc_node=Node::new("bc".to_string());
+    let d_node=Node::new("d".to_string());
+    let ef_node=Node::new("ef".to_string());
+    let bottom=concatenate(Box::new(d_node),Box::new(ef_node));
+    let second_last=concatenate(Box::new(bc_node), Box::new(bottom));
+    let root=Box::new(concatenate(Box::new(a_node),Box::new(second_last)));
     
-    let rope = insert(5,rope,"p".to_string());
-    println!("rope is {:?}", rope);
-    let rope_len = find_length(&rope);
-    println!("rope len is {}", rope_len);
-    let mut collected_string=String::new();
-    collect_string(&rope,&mut collected_string);
-    println!("collected string is {}",collected_string);
+    // println!("root is {:?}",root);
+    print_tree_horizontal(&root, "".to_string(), true);
     
+    let root=rebalance(root);
     
-    let rope = remove(0,Box::new(rope),3);
-    // println!("rope is {:?}", rope);
-    let rope_len = find_length(&rope);
-    println!("rope len is {}", rope_len);
-    let mut collected_string=String::new();
-    collect_string(&rope,&mut collected_string);
-    println!("collected string is {}",collected_string);
+    print_tree_horizontal(&root, "".to_string(), true);
+    
+    // println!("root balanced is {:?}",root);
+    // Example: unbalanced tree
+        let leaf1 = Node::new("a".to_string());
+        let leaf2 = Node::new("b".to_string());
+        let leaf3 = Node::new("c".to_string());
+        let leaf4 = Node::new("d".to_string());
+        let leaf5 = Node::new("e".to_string());
+    
+        // Right-skewed
+        let t1 = concatenate(Box::new(leaf1), Box::new(leaf2));
+        let t2 = concatenate(Box::new(t1), Box::new(leaf3));
+        let t3 = concatenate(Box::new(t2), Box::new(leaf4));
+        let root = Box::new(concatenate(Box::new(t3), Box::new(leaf5)));
+    
+        println!("--- Unbalanced Tree ---");
+        print_tree_horizontal(&root, "".to_string(), true);
+    
+        // Rebalance
+        let balanced_root = rebalance(root);
+        println!("\n--- Balanced Tree ---");
+        print_tree_horizontal(&balanced_root, "".to_string(), true);
+    
 }
