@@ -90,7 +90,10 @@ impl TreeItem for Node {
                 write!(f, "{}", style.paint(node_details))
             }
             None => {
-                let node_details = format!("internal weight:{} depth:{} l:{}", self.weight, self.depth,self.length);
+                let node_details = format!(
+                    "internal weight:{} depth:{} l:{}",
+                    self.weight, self.depth, self.length
+                );
                 write!(f, "{}", style.paint(node_details))
             }
         }
@@ -217,37 +220,36 @@ pub fn split(rope: &mut Node, index: usize, cut_nodes: &mut Vec<Box<Node>>) -> (
                         }
                         let right = rope.right.take();
                         if let Some(cut_node) = right {
-                            rope.length-=cut_node.length;
+                            rope.length -= cut_node.length;
                             cut_nodes.push(cut_node);
                         }
                         rope.weight = {
-                            match rope.left{
+                            match rope.left {
                                 Some(ref left_child) => left_child.length,
                                 None => 0,
                             }
                         };
                         rope.length = {
-                            let left_len=match rope.left{
+                            let left_len = match rope.left {
                                 Some(ref left_child) => left_child.length,
                                 None => 0,
                             };
-                            let right_len=match rope.right{
+                            let right_len = match rope.right {
                                 Some(ref right_child) => right_child.length,
                                 None => 0,
                             };
-                            right_len+left_len
-                            
+                            right_len + left_len
                         };
-                        (rope.length==0, should_increase_depth)
+                        (rope.length == 0, should_increase_depth)
                     }
                     None => (false, false),
                 }
             } else {
                 match rope.right {
                     Some(ref mut right) => {
-                        let ( should_delete_child, should_increase_depth) =
+                        let (should_delete_child, should_increase_depth) =
                             split(right, index - rope.weight, cut_nodes);
-                        
+
                         if should_increase_depth {
                             rope.depth = max(rope.depth, right.depth);
                         }
@@ -258,19 +260,18 @@ pub fn split(rope: &mut Node, index: usize, cut_nodes: &mut Vec<Box<Node>>) -> (
                             }
                         }
                         rope.length = {
-                            let left_len=match rope.left{
+                            let left_len = match rope.left {
                                 Some(ref left_child) => left_child.length,
                                 None => 0,
                             };
-                            let right_len=match rope.right{
+                            let right_len = match rope.right {
                                 Some(ref right_child) => right_child.length,
                                 None => 0,
                             };
-                            right_len+left_len
-                            
+                            right_len + left_len
                         };
 
-                        (rope.length==0, should_increase_depth)
+                        (rope.length == 0, should_increase_depth)
                     }
                     None => (false, false),
                 }
@@ -308,7 +309,6 @@ pub fn concatenate(left: Box<Node>, right: Box<Node>) -> Box<Node> {
             if let Some(ref right_str_content) = right.str_content {
                 let left_count = str_content.chars().count();
                 let right_count = right_str_content.chars().count();
-                
 
                 if left_count + right_count <= LEAF_LEN {
                     let combined_string: String = format!("{}{}", str_content, right_str_content);
@@ -319,14 +319,13 @@ pub fn concatenate(left: Box<Node>, right: Box<Node>) -> Box<Node> {
                     new_node.left = left.left;
                     new_node.weight = left.weight;
                     new_node.right = Some(Box::new(new_left_right_child));
-                    let new_node=Box::new(new_node);
+                    let new_node = Box::new(new_node);
                     return rebalance(new_node);
-                    
                 }
             }
         }
     }
-    let new_concat=Node {
+    let new_concat = Node {
         depth: 1 + max(left.depth, right.depth),
         length: left.length + right.length,
         weight: left.length,
@@ -337,28 +336,23 @@ pub fn concatenate(left: Box<Node>, right: Box<Node>) -> Box<Node> {
     rebalance(Box::new(new_concat))
 }
 
-pub fn insert( rope: Box<Node>, index: usize,content: String) -> Box<Node> {
-    // println!("rope before {:?}",rope);
+pub fn insert(rope: Box<Node>, index: usize, content: String) -> Box<Node> {
     let mut original_rope = rope;
     let mut cut_nodes = Vec::new();
 
     let _ = split(&mut original_rope, index, &mut cut_nodes);
-    // println!("cut is {}",cut.0);
-    // 
-    // println!("original rope left");
-    // print_tree(original_rope.as_ref()).unwrap();
-    let original_rope=rebalance(original_rope);
+
+    let original_rope = rebalance(original_rope);
 
     let new_merged_cut_nodes = {
         let content: Vec<char> = content.chars().collect();
-        // println!("content len is {}",content.len());
         let (mut merged, _) = build_rope(&content, 0, content.len() - 1);
         for cut_node in cut_nodes {
             merged = concatenate(merged, cut_node);
         }
         merged
     };
-    let new_merged_cut_nodes=rebalance(new_merged_cut_nodes);
+    let new_merged_cut_nodes = rebalance(new_merged_cut_nodes);
 
     concatenate(original_rope, new_merged_cut_nodes)
 }
@@ -368,39 +362,30 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> Box<Node> 
     let mut cut_nodes = Vec::new();
 
     let _ = split(&mut original_rope, index, &mut cut_nodes);
-    
-    let original_rope=rebalance(original_rope);
-    
-    // println!("original rope left after removal");
-    // print_tree(original_rope.as_ref()).unwrap();
-    
+
+    let original_rope = rebalance(original_rope);
 
     if cut_nodes.is_empty() {
         return original_rope;
     }
-    // println!("cut nodes is {}", cut_nodes.len());
 
     let mut new_merged_cut_nodes = {
         let mut cut_nodes = cut_nodes.into_iter();
         let first = cut_nodes.next();
         let mut merged = {
             match first {
-                Some(first_cut) => {
-                    // println!("first cut {:?}", first_cut);
-                    first_cut
-                }
+                Some(first_cut) => first_cut,
                 None => {
                     return original_rope;
                 }
             }
         };
         for cut_node in cut_nodes {
-            // println!("cut node {:?}", cut_node);
             merged = concatenate(merged, cut_node);
         }
         merged
     };
-    new_merged_cut_nodes=rebalance(new_merged_cut_nodes);
+    new_merged_cut_nodes = rebalance(new_merged_cut_nodes);
 
     let mut cut_nodes = Vec::new();
     let _ = split(&mut new_merged_cut_nodes, length_to_cut, &mut cut_nodes);
@@ -425,7 +410,7 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> Box<Node> 
         }
         merged
     };
-    third_new_merged_cut_nodes=rebalance(third_new_merged_cut_nodes);
+    third_new_merged_cut_nodes = rebalance(third_new_merged_cut_nodes);
     let final_parent = concatenate(original_rope, third_new_merged_cut_nodes);
     final_parent
 }
@@ -444,7 +429,7 @@ pub fn collect_leaves(node: Box<Node>, leaves: &mut Vec<Box<Node>>) {
 }
 
 pub fn rebalance(node: Box<Node>) -> Box<Node> {
-    if node.is_balanced(){
+    if node.is_balanced() {
         return node;
     }
     let mut slots: Vec<Option<Box<Node>>> = vec![None; 30];
@@ -530,9 +515,7 @@ pub fn rebalance(node: Box<Node>) -> Box<Node> {
             }
         }
     }
-    
-    
-    
+
     let mut result: Option<Box<Node>> = None;
     for slot in slots.into_iter().flatten() {
         result = Some(match result {
