@@ -1,6 +1,6 @@
 use std::{borrow::Cow, cmp::max, io, rc::Rc};
 
-use ptree::{Style, TreeBuilder, TreeItem, item::StringItem};
+use ptree::{Style, TreeBuilder, TreeItem, item::StringItem, print_tree};
 
 #[derive(Debug, Default, Clone)]
 pub struct Node {
@@ -11,7 +11,6 @@ pub struct Node {
     depth: usize,
     length: usize,
 }
-
 
 impl Node {
     pub fn new(str_content: String) -> Self {
@@ -25,92 +24,92 @@ impl Node {
             length,
         }
     }
-    fn is_balanced(&self) -> bool {
+    pub fn is_balanced(&self) -> bool {
         self.length >= FIBONACCI[self.depth + 2]
     }
 
     pub fn right(&self) -> Option<&Node> {
         self.right.as_deref()
     }
-    pub fn pretty_print(&self)->StringItem{
-        
-        match self.str_content{
+    pub fn pretty_print(&self) -> StringItem {
+        match self.str_content {
             Some(ref content) => {
-                let node_details=format!("leaf :'{}' weight:{} depth:{}",content,self.weight,self.depth);
-                let mut tree=TreeBuilder::new(node_details);
+                let node_details = format!(
+                    "leaf :'{}' weight:{} depth:{}",
+                    content, self.weight, self.depth
+                );
+                let mut tree = TreeBuilder::new(node_details);
                 tree.build()
-
-            },
+            }
             None => {
-                let node_details=format!("root weight:{} depth:{}",self.weight,self.depth);
-                let mut tree=TreeBuilder::new(node_details);
+                let node_details = format!("root weight:{} depth:{}", self.weight, self.depth);
+                let mut tree = TreeBuilder::new(node_details);
                 if let Some(ref left_child) = self.left {
-                    left_child.print_my_tree(&mut tree); 
-                } 
+                    left_child.print_my_tree(&mut tree);
+                }
                 if let Some(ref right_child) = self.right {
                     right_child.print_my_tree(&mut tree);
-                } 
+                }
                 tree.build()
             }
         }
     }
-    pub fn print_my_tree(&self,print_tree:&mut TreeBuilder){
-        match self.str_content{
+    pub fn print_my_tree(&self, print_tree: &mut TreeBuilder) {
+        match self.str_content {
             Some(ref content) => {
-                let node_details=format!("leaf :'{}' weight:{} depth:{}",content,self.weight,self.depth);
-                print_tree.add_empty_child(node_details);   
-            },
+                let node_details = format!(
+                    "leaf :'{}' weight:{} depth:{}",
+                    content, self.weight, self.depth
+                );
+                print_tree.add_empty_child(node_details);
+            }
             None => {
-                let node_details=format!("internal weight:{} depth:{}",self.weight,self.depth);
-                let print_tree=print_tree.begin_child(node_details);
+                let node_details = format!("internal weight:{} depth:{}", self.weight, self.depth);
+                let print_tree = print_tree.begin_child(node_details);
                 if let Some(ref left_child) = self.left {
-                    left_child.print_my_tree(print_tree); 
-                } 
+                    left_child.print_my_tree(print_tree);
+                }
                 if let Some(ref right_child) = self.right {
                     right_child.print_my_tree(print_tree);
-                } 
-                print_tree.end_child();  
+                }
+                print_tree.end_child();
             }
         };
-        
-        
-        
     }
 }
 
 impl TreeItem for Node {
     type Child = Self;
     fn write_self<W: io::Write>(&self, f: &mut W, style: &Style) -> io::Result<()> {
-        match self.str_content{
+        match self.str_content {
             Some(ref content) => {
-                let node_details=format!("leaf :'{}' weight:{} depth:{}",content,self.weight,self.depth);
+                let node_details = format!(
+                    "leaf :'{}' weight:{} depth:{}",
+                    content, self.weight, self.depth
+                );
                 write!(f, "{}", style.paint(node_details))
-                
-                
-                
-            },
+            }
             None => {
-                let node_details=format!("internal weight:{} depth:{}",self.weight,self.depth);
+                let node_details = format!("internal weight:{} depth:{}", self.weight, self.depth);
                 write!(f, "{}", style.paint(node_details))
-                
-            },
+            }
         }
     }
-    fn children(&self) -> Cow<'_,[Self::Child]> {
-        let mut children=Vec::new();
+    fn children(&self) -> Cow<'_, [Self::Child]> {
+        let mut children = Vec::new();
         if let Some(ref left_child) = self.left {
-            children.push(left_child.as_ref().clone()); 
-        } 
+            children.push(left_child.as_ref().clone());
+        }
         if let Some(ref right_child) = self.right {
-            children.push(right_child.as_ref().clone()); 
-        } 
+            children.push(right_child.as_ref().clone());
+        }
         Cow::from(children)
     }
 }
 
 const LEAF_LEN: usize = 3;
 const FIBONACCI: [usize; 30] = [
-     0,1,1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765,
+    0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765,
     10946, 17711, 28657, 46368, 75025, 121393, 196418, 317811, 514229,
 ];
 
@@ -187,7 +186,7 @@ pub fn split(rope: &mut Node, index: usize, cut_nodes: &mut Vec<Box<Node>>) -> (
                 let left = Node::new(left_str);
                 let right = Node::new(right_str);
                 cut_nodes.push(Box::new(right));
-                let parent = Node{
+                let parent = Node {
                     weight: left_content.len(),
                     left: Some(Box::new(left)),
                     depth: 1,
@@ -295,7 +294,14 @@ pub fn concatenate(left: Box<Node>, right: Box<Node>) -> Node {
     //         }
     //     }
     // }
-    Node { depth: 1 + max(left.depth, right.depth), length: left.length + right.length, weight: left.length, left: Some(left), right: Some(right), ..Default::default() }
+    Node {
+        depth: 1 + max(left.depth, right.depth),
+        length: left.length + right.length,
+        weight: left.length,
+        left: Some(left),
+        right: Some(right),
+        ..Default::default()
+    }
 }
 
 pub fn insert(index: usize, rope: Box<Node>, content: String) -> Node {
@@ -396,108 +402,115 @@ pub fn rebalance(node: Box<Node>) -> Box<Node> {
     let mut slots: Vec<Option<Box<Node>>> = vec![None; 30];
     let mut leaves = Vec::new();
     collect_leaves(node, &mut leaves);
-    'outer:for leaf in leaves {
+    'outer: for leaf in leaves {
         let slot_index = match FIBONACCI.binary_search(&leaf.length) {
             Ok(index) => index,
             Err(0) => 0,
             Err(i) => i - 1,
         };
-        let mut nodes_to_concatenate=Vec::new();
-        
-        for i in 0..slot_index{
-            if slots[i].is_some(){
+        let mut nodes_to_concatenate = Vec::new();
+
+        for i in 0..slot_index {
+            if slots[i].is_some() {
                 nodes_to_concatenate.push(slots[i].take().unwrap());
-            }  
+            }
         }
-        if nodes_to_concatenate.is_empty(){
-            match slots[slot_index].take(){
-                Some(current_node) => {
-                    let mut merged=leaf;
-                    for i in slot_index..slots.len(){
-                        let current=slots[i].take();
-                        match current{
-                            Some(current_node) =>{
-                                merged=Box::new(concatenate(current_node, merged));
-                                let new_slot_index = match FIBONACCI.binary_search(&merged.length) {
-                                    Ok(index) => index,
-                                    Err(0) => 0,
-                                    Err(i) => i - 1,
-                                };
-                                if new_slot_index==i{
-                                    slots[i]=Some(merged);
-                                    continue 'outer;
-                                    
-                                }
-                            },
-                            None => {
-                                let new_slot_index = match FIBONACCI.binary_search(&merged.length) {
-                                    Ok(index) => index,
-                                    Err(0) => 0,
-                                    Err(i) => i - 1,
-                                };
-                                if new_slot_index==i{
-                                    slots[i]=Some(merged);
-                                    continue 'outer;
-                                    
-                                }
-                                
-                            },
-                        }
-                    }
-                    
-                },
-                None => {
-                    slots[slot_index]=Some(leaf);
-                    continue 'outer;
-                },
-            }
-            
-        }else{
-            let mut nodes_to_concatenate=nodes_to_concatenate.into_iter().rev();
-            let mut merged=nodes_to_concatenate.next().unwrap();
-            for node in nodes_to_concatenate{
-                merged=Box::new(concatenate(node, merged));
-            }
-            merged=Box::new(concatenate(merged, leaf));
-            for i in slot_index..slots.len(){
-                let current=slots[i].take();
-                match current{
-                    Some(current_node) =>{
-                        merged=Box::new(concatenate(current_node, merged));
+        if nodes_to_concatenate.is_empty() {
+            let mut merged = leaf;
+            for i in slot_index..slots.len() {
+                let current = slots[i].take();
+                match current {
+                    Some(current_node) => {
+                        merged = Box::new(concatenate(current_node, merged));
                         let new_slot_index = match FIBONACCI.binary_search(&merged.length) {
                             Ok(index) => index,
                             Err(0) => 0,
                             Err(i) => i - 1,
                         };
-                        if new_slot_index==i{
-                            slots[i]=Some(merged);
+                        if new_slot_index == i {
+                            slots[i] = Some(merged);
                             continue 'outer;
-                            
                         }
-                    },
+                    }
                     None => {
                         let new_slot_index = match FIBONACCI.binary_search(&merged.length) {
                             Ok(index) => index,
                             Err(0) => 0,
                             Err(i) => i - 1,
                         };
-                        if new_slot_index==i{
-                            slots[i]=Some(merged);
+                        if new_slot_index == i {
+                            slots[i] = Some(merged);
                             continue 'outer;
-                            
                         }
-                        
-                    },
+                    }
+                }
+            }
+        } else {
+            let mut nodes_to_concatenate = nodes_to_concatenate.into_iter();
+            let mut merged = nodes_to_concatenate.next().unwrap();
+            for node in nodes_to_concatenate {
+                merged = Box::new(concatenate(node, merged));
+            }
+            merged = Box::new(concatenate(merged, leaf));
+            for i in slot_index..slots.len() {
+                let current = slots[i].take();
+                match current {
+                    Some(current_node) => {
+                        merged = Box::new(concatenate(current_node, merged));
+                        let new_slot_index = match FIBONACCI.binary_search(&merged.length) {
+                            Ok(index) => index,
+                            Err(0) => 0,
+                            Err(i) => i - 1,
+                        };
+                        if new_slot_index == i {
+                            slots[i] = Some(merged);
+                            continue 'outer;
+                        }
+                    }
+                    None => {
+                        let new_slot_index = match FIBONACCI.binary_search(&merged.length) {
+                            Ok(index) => index,
+                            Err(0) => 0,
+                            Err(i) => i - 1,
+                        };
+                        if new_slot_index == i {
+                            slots[i] = Some(merged);
+                            continue 'outer;
+                        }
+                    }
                 }
             }
         }
     }
+    
+    // for slot in slots.iter(){
+    //     match slot{
+    //         Some(node) => {
+    //             println!("slot in tree");
+    //             print_tree(node.as_ref()).unwrap();
+    //         },
+    //         None => {},
+    //     }
+    // }
+    
     let mut result: Option<Box<Node>> = None;
     for slot in slots.into_iter().flatten() {
         result = Some(match result {
             None => slot,
-            Some(r) => Box::new(concatenate(r, slot)),
+            Some(r) => Box::new(concatenate(slot, r)),
         });
     }
     result.unwrap()
+}
+
+pub fn make_unbalanced_rope() -> Box<Node> {
+    let chars = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+    let mut rope = Box::new(Node::new((chars[0]).to_string()));
+
+    for &c in &chars[1..] {
+        rope = Box::new(concatenate(rope, Box::new(Node::new(c.to_string())))); // always concatenate on the RIGHT
+    }
+
+    rope
 }
