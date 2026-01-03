@@ -3,6 +3,21 @@ use ptree::{Color, PrintConfig, Style, TreeBuilder, print_config::UTF_CHARS_BOLD
 use text_editor::rope::{Node, build_rope, collect_string, concatenate, find_length, index, insert, make_unbalanced_rope, rebalance, remove};
 
 fn main() {
+    let content="hello my name is Simon";
+    let content:Vec<char>=content.chars().collect();
+    let (rope,_)=build_rope(&content, 0, content.len()-1);
+    println!("built tree");    
+    print_tree(rope.as_ref()).unwrap();
+    let rope=remove(rope, 1, 1);
+    
+    println!("removed e tree");    
+    print_tree(rope.as_ref()).unwrap();
+    
+    let rope=insert(rope, 1, "a".to_string());
+    
+    println!("added a tree");    
+    print_tree(rope.as_ref()).unwrap();
+    
     let a_node=Node::new("a".to_string());
     let bc_node=Node::new("bc".to_string());
     let d_node=Node::new("d".to_string());
