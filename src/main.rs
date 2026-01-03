@@ -8,14 +8,14 @@ fn main() {
     let d_node=Node::new("d".to_string());
     let ef_node=Node::new("ef".to_string());
     let bottom=concatenate(Box::new(d_node),Box::new(ef_node));
-    let second_last=concatenate(Box::new(bc_node), Box::new(bottom));
-    let root=concatenate(Box::new(a_node),Box::new(second_last));
+    let second_last=concatenate(Box::new(bc_node), bottom);
+    let root=concatenate(Box::new(a_node),second_last);
     println!("original tree");    
-    print_tree(&root).unwrap();
+    print_tree(root.as_ref()).unwrap();
     
     
     
-    let root=rebalance(Box::new(root));
+    let root=rebalance(root);
     
     println!("balanced tree");
     print_tree(root.as_ref()).unwrap();
@@ -29,19 +29,19 @@ fn main() {
         
         // Build a deep, unbalanced chain: ((((a,b),c),d),e)
         let ab = concatenate(Box::new(a), Box::new(b));
-        let abc = concatenate(Box::new(ab), Box::new(c));
-        let abcd = concatenate(Box::new(abc), Box::new(d));
-        let abcde = concatenate(Box::new(abcd), Box::new(e));
+        let abc = concatenate(ab, Box::new(c));
+        let abcd = concatenate(abc, Box::new(d));
+        let abcde = concatenate(Box::new(e),abcd );
         
         println!("=== Unbalanced Rope ===");
         println!("This rope is intentionally unbalanced with depth 4 and total length 5");
-        print_tree(&abcde).unwrap();
+        print_tree(abcde.as_ref()).unwrap();
         
         // Check if it's balanced according to the rope's criteria
         // For depth 4, FIBONACCI[4+2] = FIBONACCI[6] = 8
         // Since length 5 < 8, this rope is unbalanced
         
-        let balanced = rebalance(Box::new(abcde));
+        let balanced = rebalance(abcde);
         println!("\n=== After Rebalancing ===");
         print_tree(balanced.as_ref()).unwrap();
         

@@ -1,6 +1,6 @@
 use std::{borrow::Cow, cmp::max, io, rc::Rc};
 
-use ptree::{Style, TreeBuilder, TreeItem, item::StringItem, print_tree};
+use ptree::{Style, TreeBuilder, TreeItem, item::StringItem};
 
 #[derive(Debug, Default, Clone)]
 pub struct Node {
@@ -90,7 +90,7 @@ impl TreeItem for Node {
                 write!(f, "{}", style.paint(node_details))
             }
             None => {
-                let node_details = format!("internal weight:{} depth:{}", self.weight, self.depth);
+                let node_details = format!("internal weight:{} depth:{} l:{}", self.weight, self.depth,self.length);
                 write!(f, "{}", style.paint(node_details))
             }
         }
@@ -263,37 +263,44 @@ pub fn find_length(node: &Node) -> usize {
 }
 
 pub fn concatenate(left: Box<Node>, right: Box<Node>) -> Box<Node> {
-    // if let Some(ref left_str_content) = left.str_content {
-    //     if let Some(ref right_str_content) = right.str_content {
-    //         let left_count = left_str_content.chars().count();
-    //         let right_count = right_str_content.chars().count();
+    if let Some(ref left_str_content) = left.str_content {
+        if let Some(ref right_str_content) = right.str_content {
+            let left_count = left_str_content.chars().count();
+            let right_count = right_str_content.chars().count();
 
-    //         if left_count + right_count <= LEAF_LEN {
-    //             let combined_string: String = format!("{}{}", left_str_content, right_str_content);
-    //             return Node::new(combined_string);
-    //         }
-    //     }
-    // }
-    // if let Some(ref left_right_child) = left.right {
-    //     if let Some(ref str_content) = left_right_child.str_content {
-    //         if let Some(ref right_str_content) = right.str_content {
-    //             let left_count = str_content.chars().count();
-    //             let right_count = right_str_content.chars().count();
+            if left_count + right_count <= LEAF_LEN {
+                let combined_string: String = format!("{}{}", left_str_content, right_str_content);
+                return Box::new(Node::new(combined_string));
+            }
+        }
+    }
+    if let Some(ref left_right_child) = left.right {
+        if let Some(ref str_content) = left_right_child.str_content {
+            if let Some(ref right_str_content) = right.str_content {
+                let left_count = str_content.chars().count();
+                let right_count = right_str_content.chars().count();
 
-    //             if left_count + right_count <= LEAF_LEN {
-    //                 let combined_string: String = format!("{}{}", str_content, right_str_content);
-    //                 let new_left_right_child = Node::new(combined_string);
-    //                 let mut new_node = Node::default();
-    //                 new_node.depth = left.depth;
-    //                 new_node.length = left.length + right_count;
-    //                 new_node.left = left.left;
-    //                 new_node.weight = left.weight;
-    //                 new_node.right = Some(Box::new(new_left_right_child));
-    //                 return new_node;
-    //             }
-    //         }
-    //     }
-    // }
+                if left_count + right_count <= LEAF_LEN {
+                    let combined_string: String = format!("{}{}", str_content, right_str_content);
+                    let new_left_right_child = Node::new(combined_string);
+                    let mut new_node = Node::default();
+                    new_node.depth = left.depth;
+                    new_node.length = left.length + right_count;
+                    new_node.left = left.left;
+                    new_node.weight = left.weight;
+                    new_node.right = Some(Box::new(new_left_right_child));
+                    let new_node=Box::new(new_node);
+                    if !new_node.is_balanced(){
+                        return rebalance(new_node);
+                        
+                    }else{
+                         return new_node;  
+                    }
+                    
+                }
+            }
+        }
+    }
     let new_concat=Node {
         depth: 1 + max(left.depth, right.depth),
         length: left.length + right.length,
@@ -489,15 +496,7 @@ pub fn rebalance(node: Box<Node>) -> Box<Node> {
         }
     }
     
-    // for slot in slots.iter(){
-    //     match slot{
-    //         Some(node) => {
-    //             println!("slot in tree");
-    //             print_tree(node.as_ref()).unwrap();
-    //         },
-    //         None => {},
-    //     }
-    // }
+    
     
     let mut result: Option<Box<Node>> = None;
     for slot in slots.into_iter().flatten() {
