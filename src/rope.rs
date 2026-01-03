@@ -262,7 +262,7 @@ pub fn find_length(node: &Node) -> usize {
     }
 }
 
-pub fn concatenate(left: Box<Node>, right: Box<Node>) -> Node {
+pub fn concatenate(left: Box<Node>, right: Box<Node>) -> Box<Node> {
     // if let Some(ref left_str_content) = left.str_content {
     //     if let Some(ref right_str_content) = right.str_content {
     //         let left_count = left_str_content.chars().count();
@@ -294,17 +294,23 @@ pub fn concatenate(left: Box<Node>, right: Box<Node>) -> Node {
     //         }
     //     }
     // }
-    Node {
+    let new_concat=Node {
         depth: 1 + max(left.depth, right.depth),
         length: left.length + right.length,
         weight: left.length,
         left: Some(left),
         right: Some(right),
         ..Default::default()
+    };
+    if !new_concat.is_balanced(){
+        rebalance(Box::new(new_concat))
+        
+    }else{
+        Box::new(new_concat)
     }
 }
 
-pub fn insert(index: usize, rope: Box<Node>, content: String) -> Node {
+pub fn insert(index: usize, rope: Box<Node>, content: String) -> Box<Node> {
     // println!("rope before {:?}",rope);
     let mut original_rope = rope;
     let mut cut_nodes = Vec::new();
@@ -317,7 +323,7 @@ pub fn insert(index: usize, rope: Box<Node>, content: String) -> Node {
         // println!("content len is {}",content.len());
         let (mut merged, _) = build_rope(&content, 0, content.len() - 1);
         for cut_node in cut_nodes {
-            merged = Box::new(concatenate(merged, cut_node));
+            merged = concatenate(merged, cut_node);
         }
         merged
     };
@@ -352,7 +358,7 @@ pub fn remove(index: usize, rope: Box<Node>, length_to_cut: usize) -> Box<Node> 
         };
         for cut_node in cut_nodes {
             println!("cut node {:?}", cut_node);
-            merged = Box::new(concatenate(merged, cut_node));
+            merged = concatenate(merged, cut_node);
         }
         merged
     };
@@ -376,13 +382,13 @@ pub fn remove(index: usize, rope: Box<Node>, length_to_cut: usize) -> Box<Node> 
             }
         };
         for cut_node in cut_nodes {
-            merged = Box::new(concatenate(merged, cut_node));
+            merged = concatenate(merged, cut_node);
         }
         merged
     };
 
     let final_parent = concatenate(original_rope, third_new_merged_cut_nodes);
-    Box::new(final_parent)
+    final_parent
 }
 pub fn collect_leaves(node: Box<Node>, leaves: &mut Vec<Box<Node>>) {
     if node.str_content.is_some() {
@@ -421,7 +427,7 @@ pub fn rebalance(node: Box<Node>) -> Box<Node> {
                 let current = slots[i].take();
                 match current {
                     Some(current_node) => {
-                        merged = Box::new(concatenate(current_node, merged));
+                        merged = concatenate(current_node, merged);
                         let new_slot_index = match FIBONACCI.binary_search(&merged.length) {
                             Ok(index) => index,
                             Err(0) => 0,
@@ -449,14 +455,14 @@ pub fn rebalance(node: Box<Node>) -> Box<Node> {
             let mut nodes_to_concatenate = nodes_to_concatenate.into_iter();
             let mut merged = nodes_to_concatenate.next().unwrap();
             for node in nodes_to_concatenate {
-                merged = Box::new(concatenate(node, merged));
+                merged = concatenate(node, merged);
             }
-            merged = Box::new(concatenate(merged, leaf));
+            merged = concatenate(merged, leaf);
             for i in slot_index..slots.len() {
                 let current = slots[i].take();
                 match current {
                     Some(current_node) => {
-                        merged = Box::new(concatenate(current_node, merged));
+                        merged = concatenate(current_node, merged);
                         let new_slot_index = match FIBONACCI.binary_search(&merged.length) {
                             Ok(index) => index,
                             Err(0) => 0,
@@ -497,7 +503,7 @@ pub fn rebalance(node: Box<Node>) -> Box<Node> {
     for slot in slots.into_iter().flatten() {
         result = Some(match result {
             None => slot,
-            Some(r) => Box::new(concatenate(slot, r)),
+            Some(r) => concatenate(slot, r),
         });
     }
     result.unwrap()
@@ -509,7 +515,7 @@ pub fn make_unbalanced_rope() -> Box<Node> {
     let mut rope = Box::new(Node::new((chars[0]).to_string()));
 
     for &c in &chars[1..] {
-        rope = Box::new(concatenate(rope, Box::new(Node::new(c.to_string())))); // always concatenate on the RIGHT
+        rope = concatenate(rope, Box::new(Node::new(c.to_string()))); // always concatenate on the RIGHT
     }
 
     rope

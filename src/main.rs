@@ -51,12 +51,9 @@ fn main() {
         println!("\n=== Making unbalanced rope ===");
         let rope=make_unbalanced_rope();
         print_tree(rope.as_ref()).unwrap();
+        println!("unbalanced balanced {}",rope.is_balanced());
         
         let balanced = rebalance(rope);
         println!("\n=== After Rebalancing made rope===");
         print_tree(balanced.as_ref()).unwrap();
-        
-        
-        
-    
 }
