@@ -109,8 +109,8 @@ impl TreeItem for Node {
 }
 
 const LEAF_LEN: usize = 3;
-const FIBONACCI: [usize; 28] = [
-     1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765,
+const FIBONACCI: [usize; 30] = [
+     0,1,1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765,
     10946, 17711, 28657, 46368, 75025, 121393, 196418, 317811, 514229,
 ];
 
@@ -393,25 +393,104 @@ pub fn collect_leaves(node: Box<Node>, leaves: &mut Vec<Box<Node>>) {
 }
 
 pub fn rebalance(node: Box<Node>) -> Box<Node> {
-    let mut slots: Vec<Option<Box<Node>>> = vec![None; 28];
+    let mut slots: Vec<Option<Box<Node>>> = vec![None; 30];
     let mut leaves = Vec::new();
     collect_leaves(node, &mut leaves);
-    for leaf in leaves {
+    'outer:for leaf in leaves {
         let slot_index = match FIBONACCI.binary_search(&leaf.length) {
             Ok(index) => index,
             Err(0) => 0,
             Err(i) => i - 1,
         };
-
-        let mut current = leaf;
-        let mut slot = 0;
-
-        while let Some(existing) = slots[slot].take() {
-            current = Box::new(concatenate(existing, current));
-            slot += 1;
+        let mut nodes_to_concatenate=Vec::new();
+        
+        for i in 0..slot_index{
+            if slots[i].is_some(){
+                nodes_to_concatenate.push(slots[i].take().unwrap());
+            }  
         }
-
-        slots[slot] = Some(current);
+        if nodes_to_concatenate.is_empty(){
+            match slots[slot_index].take(){
+                Some(current_node) => {
+                    let mut merged=leaf;
+                    for i in slot_index..slots.len(){
+                        let current=slots[i].take();
+                        match current{
+                            Some(current_node) =>{
+                                merged=Box::new(concatenate(current_node, merged));
+                                let new_slot_index = match FIBONACCI.binary_search(&merged.length) {
+                                    Ok(index) => index,
+                                    Err(0) => 0,
+                                    Err(i) => i - 1,
+                                };
+                                if new_slot_index==i{
+                                    slots[i]=Some(merged);
+                                    continue 'outer;
+                                    
+                                }
+                            },
+                            None => {
+                                let new_slot_index = match FIBONACCI.binary_search(&merged.length) {
+                                    Ok(index) => index,
+                                    Err(0) => 0,
+                                    Err(i) => i - 1,
+                                };
+                                if new_slot_index==i{
+                                    slots[i]=Some(merged);
+                                    continue 'outer;
+                                    
+                                }
+                                
+                            },
+                        }
+                    }
+                    
+                },
+                None => {
+                    slots[slot_index]=Some(leaf);
+                    continue 'outer;
+                },
+            }
+            
+        }else{
+            let mut nodes_to_concatenate=nodes_to_concatenate.into_iter().rev();
+            let mut merged=nodes_to_concatenate.next().unwrap();
+            for node in nodes_to_concatenate{
+                merged=Box::new(concatenate(node, merged));
+            }
+            merged=Box::new(concatenate(merged, leaf));
+            for i in slot_index..slots.len(){
+                let current=slots[i].take();
+                match current{
+                    Some(current_node) =>{
+                        merged=Box::new(concatenate(current_node, merged));
+                        let new_slot_index = match FIBONACCI.binary_search(&merged.length) {
+                            Ok(index) => index,
+                            Err(0) => 0,
+                            Err(i) => i - 1,
+                        };
+                        if new_slot_index==i{
+                            slots[i]=Some(merged);
+                            continue 'outer;
+                            
+                        }
+                    },
+                    None => {
+                        let new_slot_index = match FIBONACCI.binary_search(&merged.length) {
+                            Ok(index) => index,
+                            Err(0) => 0,
+                            Err(i) => i - 1,
+                        };
+                        if new_slot_index==i{
+                            slots[i]=Some(merged);
+                            continue 'outer;
+                            
+                        }
+                        
+                    },
+                }
+            }
+        }
     }
     let mut result: Option<Box<Node>> = None;
     for slot in slots.into_iter().flatten() {
