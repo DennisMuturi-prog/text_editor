@@ -47,7 +47,8 @@ impl App {
     fn delete_char(&mut self) {
         let old_rope = self.rope.take();
         if let Some(old_one) = old_rope {
-            let new_rope = remove(old_one, self.row_number-1, 1);
+            let index=((self.row_number*(self.column_number+1))+self.column_number).saturating_sub(1);
+            let new_rope = remove(old_one, index, 1);
             self.text.clear();
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
@@ -57,22 +58,40 @@ impl App {
     fn add_char(&mut self, value: char) {
         let old_rope = self.rope.take();
         if let Some(old_one) = old_rope {
-            let new_rope = insert(old_one, self.row_number, value.to_string());
+            let index=(self.row_number*(self.column_number+1))+self.column_number;
+            let new_rope = insert(old_one, index, value.to_string());
             self.text.clear();
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
         }
         self.move_cursor_right();
     }
+    
+    fn jump_to_new_line(&mut self) {
+        let old_rope = self.rope.take();
+        if let Some(old_one) = old_rope {
+            let index=(self.row_number*(self.column_number+1))+self.column_number;
+            let new_rope = insert(old_one, index, "\n".to_string());
+            self.text.clear();
+            collect_string(&new_rope, &mut self.text);
+            self.rope = Some(new_rope);
+        }
+        self.move_cursor_down();
+    }
 
     fn move_cursor_left(&mut self) {
-        let cursor_moved_left = self.row_number.saturating_sub(1);
-        self.row_number = self.clamp_cursor(cursor_moved_left);
+        let cursor_moved_left = self.column_number.saturating_sub(1);
+        self.column_number = self.clamp_cursor(cursor_moved_left);
+    }
+    fn move_cursor_down(&mut self) {
+        self.column_number=0;
+        let cursor_moved_down = self.row_number.saturating_add(1);
+        self.row_number = cursor_moved_down;
     }
 
     fn move_cursor_right(&mut self) {
-        let cursor_moved_right = self.row_number.saturating_add(1);
-        self.row_number = self.clamp_cursor(cursor_moved_right);
+        let cursor_moved_right = self.column_number.saturating_add(1);
+        self.column_number = self.clamp_cursor(cursor_moved_right);
     }
     fn clamp_cursor(&self, new_cursor_pos: usize) -> usize {
         new_cursor_pos.clamp(0, self.text.chars().count())
@@ -113,9 +132,9 @@ impl App {
             Mode::Editing => frame.set_cursor_position(Position::new(
                 // Draw the cursor at the current position in the input field.
                 // This position is can be controlled via the left and right arrow key
-                chunks[1].x + self.row_number as u16 + 1,
+                chunks[1].x + self.column_number as u16 + 1,
                 // Move one line down, from the border to the input line
-                chunks[1].y + 1,
+                chunks[1].y + 1+self.row_number as u16,
             )),
             _ => {}
         }
@@ -210,7 +229,9 @@ impl App {
                     _ => {}
                 },
                 Mode::Editing if key.kind == KeyEventKind::Press => match key.code {
-                    KeyCode::Enter => {}
+                    KeyCode::Enter => {
+                        self.jump_to_new_line();
+                    }
                     KeyCode::Backspace => {
                         self.delete_char();
                     }
