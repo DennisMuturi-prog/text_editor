@@ -76,6 +76,64 @@ impl Node {
             }
         };
     }
+    
+    pub fn remove(self:Box<Self>, index: usize, length_to_cut: usize) -> Box<Node> {
+        let mut original_rope = self;
+        let mut cut_nodes = Vec::new();
+    
+        let _ = split(&mut original_rope, index, &mut cut_nodes);
+    
+        let original_rope = rebalance(original_rope);
+    
+        if cut_nodes.is_empty() {
+            return original_rope;
+        }
+    
+        let mut new_merged_cut_nodes = {
+            let mut cut_nodes = cut_nodes.into_iter();
+            let first = cut_nodes.next();
+            let mut merged = {
+                match first {
+                    Some(first_cut) => first_cut,
+                    None => {
+                        return original_rope;
+                    }
+                }
+            };
+            for cut_node in cut_nodes {
+                merged = concatenate(merged, cut_node);
+            }
+            merged
+        };
+        new_merged_cut_nodes = rebalance(new_merged_cut_nodes);
+    
+        let mut cut_nodes = Vec::new();
+        let _ = split(&mut new_merged_cut_nodes, length_to_cut, &mut cut_nodes);
+    
+        if cut_nodes.is_empty() {
+            return original_rope;
+        }
+    
+        let mut third_new_merged_cut_nodes = {
+            let mut cut_nodes = cut_nodes.into_iter();
+            let first = cut_nodes.next();
+            let mut merged = {
+                match first {
+                    Some(first_cut) => first_cut,
+                    None => {
+                        return original_rope;
+                    }
+                }
+            };
+            for cut_node in cut_nodes {
+                merged = concatenate(merged, cut_node);
+            }
+            merged
+        };
+        third_new_merged_cut_nodes = rebalance(third_new_merged_cut_nodes);
+        let final_parent = concatenate(original_rope, third_new_merged_cut_nodes);
+        final_parent
+    }
 }
 
 impl TreeItem for Node {

@@ -10,6 +10,8 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
+
+use crate::rope::{Node, collect_string, insert, remove};
 #[derive(Default)]
 pub struct App {
     text: String,
@@ -17,6 +19,7 @@ pub struct App {
     mode: Mode,
     row_number: usize,
     column_number: usize,
+    rope: Option<Box<Node>>,
 }
 #[derive(Default)]
 enum Mode {
@@ -27,6 +30,13 @@ enum Mode {
 }
 
 impl App {
+    pub fn new(starting_string: String) -> Self {
+        Self {
+            rope: Some(Box::new(Node::new(starting_string.clone()))),
+            text: starting_string,
+            ..App::default()
+        }
+    }
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         while !self.exit {
             terminal.draw(|frame| self.draw(frame))?;
@@ -34,15 +44,25 @@ impl App {
         }
         Ok(())
     }
-    fn delete_char(&mut self){
-        self.text.pop();
+    fn delete_char(&mut self) {
+        let old_rope = self.rope.take();
+        if let Some(old_one) = old_rope {
+            let new_rope = remove(old_one, self.row_number-1, 1);
+            self.text.clear();
+            collect_string(&new_rope, &mut self.text);
+            self.rope = Some(new_rope);
+        }
         self.move_cursor_left();
-        
     }
-    fn add_char(&mut self,value:char){
-        self.text.push(value);
+    fn add_char(&mut self, value: char) {
+        let old_rope = self.rope.take();
+        if let Some(old_one) = old_rope {
+            let new_rope = insert(old_one, self.row_number, value.to_string());
+            self.text.clear();
+            collect_string(&new_rope, &mut self.text);
+            self.rope = Some(new_rope);
+        }
         self.move_cursor_right();
-        
     }
 
     fn move_cursor_left(&mut self) {
@@ -192,7 +212,7 @@ impl App {
                 Mode::Editing if key.kind == KeyEventKind::Press => match key.code {
                     KeyCode::Enter => {}
                     KeyCode::Backspace => {
-                        self.delete_char();  
+                        self.delete_char();
                     }
                     KeyCode::Esc => {
                         self.mode = Mode::Normal;
@@ -200,8 +220,9 @@ impl App {
                     KeyCode::Tab => {}
                     KeyCode::Char(value) => {
                         self.add_char(value);
-                        
                     }
+                    KeyCode::Left => self.move_cursor_left(),
+                    KeyCode::Right => self.move_cursor_right(),
                     _ => {}
                 },
                 _ => {}
