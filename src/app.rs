@@ -20,6 +20,7 @@ pub struct App {
     row_number: usize,
     column_number: usize,
     rope: Option<Box<Node>>,
+    index:usize
 }
 #[derive(Default)]
 enum Mode {
@@ -33,6 +34,7 @@ impl App {
     pub fn new(starting_string: String) -> Self {
         Self {
             rope: Some(Box::new(Node::new(starting_string.clone()))),
+            index:starting_string.chars().count(),
             text: starting_string,
             ..App::default()
         }
@@ -47,8 +49,7 @@ impl App {
     fn delete_char(&mut self) {
         let old_rope = self.rope.take();
         if let Some(old_one) = old_rope {
-            let index=((self.row_number*(self.column_number+1))+self.column_number).saturating_sub(1);
-            let new_rope = remove(old_one, index, 1);
+            let new_rope = remove(old_one, self.index.saturating_sub(1), 1);
             self.text.clear();
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
@@ -58,11 +59,11 @@ impl App {
     fn add_char(&mut self, value: char) {
         let old_rope = self.rope.take();
         if let Some(old_one) = old_rope {
-            let index=(self.row_number*(self.column_number+1))+self.column_number;
-            let new_rope = insert(old_one, index, value.to_string());
+            let new_rope = insert(old_one, self.index, value.to_string());
             self.text.clear();
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
+            
         }
         self.move_cursor_right();
     }
@@ -70,16 +71,18 @@ impl App {
     fn jump_to_new_line(&mut self) {
         let old_rope = self.rope.take();
         if let Some(old_one) = old_rope {
-            let index=(self.row_number*(self.column_number+1))+self.column_number;
-            let new_rope = insert(old_one, index, "\n".to_string());
+            
+            let new_rope = insert(old_one, self.index, "\n".to_string());
             self.text.clear();
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
+            self.index+=1;
         }
         self.move_cursor_down();
     }
 
     fn move_cursor_left(&mut self) {
+        self.index=self.index.saturating_sub(1);
         let cursor_moved_left = self.column_number.saturating_sub(1);
         self.column_number = self.clamp_cursor(cursor_moved_left);
     }
@@ -90,6 +93,7 @@ impl App {
     }
 
     fn move_cursor_right(&mut self) {
+        self.index+=1;
         let cursor_moved_right = self.column_number.saturating_add(1);
         self.column_number = self.clamp_cursor(cursor_moved_right);
     }
@@ -155,7 +159,7 @@ impl App {
             Span::styled(" | ", Style::default().fg(Color::White)),
             // The final section of the text, with hints on what the user is editing
             Span::styled(
-                format!("column {} row {}", self.column_number, self.row_number),
+                format!("column {} row {} index:{}", self.column_number, self.row_number,self.index),
                 Style::default().fg(Color::Green),
             ),
         ];

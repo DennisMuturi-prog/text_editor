@@ -17,6 +17,9 @@ fn main() -> io::Result<()> {
     // rope=insert(rope,0,"hey".to_string());
     // print_tree(rope.as_ref()).unwrap();
     
+    // rope=insert(rope,3,"people".to_string());
+    // print_tree(rope.as_ref()).unwrap();
+    
     
     Ok(())
 }

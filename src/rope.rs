@@ -399,6 +399,17 @@ pub fn insert(rope: Box<Node>, index: usize, content: String) -> Box<Node> {
         let content:Vec<char>=content.chars().collect();
         return build_rope(&content, 0, content.len()-1).0;
     }
+    if index==0{
+        let content:Vec<char>=content.chars().collect();
+        let new_node=build_rope(&content, 0, content.len()-1).0;
+        let new_rope=concatenate(new_node, rope);
+        return new_rope;
+    }else if index==rope.length{
+        let content:Vec<char>=content.chars().collect();
+        let new_node=build_rope(&content, 0, content.len()-1).0;
+        let new_rope=concatenate(rope, new_node);
+        return new_rope;  
+    }
     let mut original_rope = rope;
     let mut cut_nodes = Vec::new();
 
@@ -422,6 +433,9 @@ pub fn insert(rope: Box<Node>, index: usize, content: String) -> Box<Node> {
 pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> Box<Node> {
     if rope.length==length_to_cut{
         return Box::new(Node::default());
+    }
+    if rope.length==0{
+        return rope;
     }
     let mut original_rope = rope;
     let mut cut_nodes = Vec::new();
