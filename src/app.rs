@@ -20,7 +20,8 @@ pub struct App {
     row_number: usize,
     column_number: usize,
     rope: Option<Box<Node>>,
-    index:usize
+    index:usize,
+    upper_limit_for_current_line:usize
 }
 #[derive(Default)]
 enum Mode {
@@ -83,8 +84,22 @@ impl App {
 
     fn move_cursor_left(&mut self) {
         self.index=self.index.saturating_sub(1);
-        let cursor_moved_left = self.column_number.saturating_sub(1);
-        self.column_number = self.clamp_cursor(cursor_moved_left);
+        if self.column_number==0{
+            let new_column= self.text.lines().nth(self.row_number.saturating_sub(1));
+            self.row_number=self.row_number.saturating_sub(1);
+            self.column_number=match new_column{
+                Some(new_val) => {
+                    new_val.chars().count()
+                },
+                None =>{
+                    0
+                },
+            }
+        }else{
+            let cursor_moved_left = self.column_number-1;
+            self.column_number = self.clamp_cursor(cursor_moved_left); 
+        }
+        
     }
     fn move_cursor_down(&mut self) {
         self.column_number=0;
