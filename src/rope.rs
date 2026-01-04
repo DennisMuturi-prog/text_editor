@@ -395,6 +395,10 @@ pub fn concatenate(left: Box<Node>, right: Box<Node>) -> Box<Node> {
 }
 
 pub fn insert(rope: Box<Node>, index: usize, content: String) -> Box<Node> {
+    if rope.length==0{
+        let content:Vec<char>=content.chars().collect();
+        return build_rope(&content, 0, content.len()-1).0;
+    }
     let mut original_rope = rope;
     let mut cut_nodes = Vec::new();
 
@@ -416,10 +420,14 @@ pub fn insert(rope: Box<Node>, index: usize, content: String) -> Box<Node> {
 }
 
 pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> Box<Node> {
+    if rope.length==length_to_cut{
+        return Box::new(Node::default());
+    }
     let mut original_rope = rope;
     let mut cut_nodes = Vec::new();
 
     let _ = split(&mut original_rope, index, &mut cut_nodes);
+    
 
     let original_rope = rebalance(original_rope);
 
