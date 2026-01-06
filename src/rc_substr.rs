@@ -5,6 +5,8 @@
 use std::ops::{Deref, Range};
 use std::rc::Rc;
 
+use unicode_segmentation::UnicodeSegmentation;
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct RcSubstr {
     pub string: Rc<str>,
@@ -14,7 +16,7 @@ pub struct RcSubstr {
 
 impl RcSubstr {
     pub fn new(string: Rc<str>) -> Self {
-        let span = 0..string.chars().count()-1;
+        let span = 0..string.graphemes(true).count()-1;
         let boundaries=find_grapheme_boundaries(&string);
         Self { string, span,boundaries }
     }
@@ -35,22 +37,6 @@ impl Deref for RcSubstr {
         &self.string[self.boundaries[self.span.start]..=self.boundaries[self.span.end]]
     }
 }
-
-pub fn find_byte_indices_range_2(content:&Rc<str>)->Vec<usize>{
-    let bytes_to_look=content.as_bytes();
-    let mut boundaries=Vec::new();
-    
-    for (index,byte) in bytes_to_look.iter().enumerate(){
-        if byte<=&127{
-            boundaries.push(index);
-        }else if byte>=&192{
-            boundaries.push(index);
-        }
-        
-    }
-    boundaries
-}
-
 pub fn find_grapheme_boundaries(content: &Rc<str>) -> Rc<[usize]> {
     use unicode_segmentation::UnicodeSegmentation;
     
@@ -64,8 +50,8 @@ pub fn find_grapheme_boundaries(content: &Rc<str>) -> Rc<[usize]> {
     }
     boundaries.push(byte_offset);
    
-   let boundaries= boundaries.into();// Add the end boundary
-    boundaries
+   // Add the end boundary
+    boundaries.into()
 }
 
 

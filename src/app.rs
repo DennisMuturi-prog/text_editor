@@ -10,8 +10,9 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
+use unicode_segmentation::UnicodeSegmentation;
 
-use crate::rope::{Node, collect_string, insert, remove};
+use crate::rope::{Node, build_rope, collect_string, insert, remove};
 #[derive(Default)]
 pub struct App {
     text: String,
@@ -33,10 +34,13 @@ enum Mode {
 
 impl App {
     pub fn new(starting_string: String) -> Self {
+        let copy_of_string=starting_string.clone();
+        let content:Vec<&str>=starting_string.graphemes(true).collect();
         Self {
-            rope: Some(Box::new(Node::new(starting_string.clone()))),
-            index:starting_string.chars().count(),
-            text: starting_string,
+            rope: Some(build_rope(&content, 0, content.len()-1).0),
+            index:content.len(),
+            text: copy_of_string,
+            column_number:content.len(),
             ..App::default()
         }
     }
@@ -142,21 +146,13 @@ impl App {
             Paragraph::new(Text::styled(self.text(), Style::default().fg(Color::White)))
                 .block(title_block);
         frame.render_widget(text_content, chunks[1]);
-        match self.mode {
-            // Hide the cursor. `Frame` does this by default, so we don't need to do anything here
-
-            // Make the cursor visible and ask ratatui to put it at the specified coordinates after
-            // rendering
-            #[allow(clippy::cast_possible_truncation)]
-            Mode::Editing => frame.set_cursor_position(Position::new(
-                // Draw the cursor at the current position in the input field.
-                // This position is can be controlled via the left and right arrow key
-                chunks[1].x + self.column_number as u16 + 1,
-                // Move one line down, from the border to the input line
-                chunks[1].y + 1+self.row_number as u16,
-            )),
-            _ => {}
-        }
+        if let Mode::Editing = self.mode { frame.set_cursor_position(Position::new(
+            // Draw the cursor at the current position in the input field.
+            // This position is can be controlled via the left and right arrow key
+            chunks[1].x + self.column_number as u16 + 1,
+            // Move one line down, from the border to the input line
+            chunks[1].y + 1+self.row_number as u16,
+        )) }
         let footer_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])

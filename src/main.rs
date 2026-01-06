@@ -15,19 +15,21 @@ use text_editor::{
 use unicode_segmentation::UnicodeSegmentation;
 
 fn main() -> io::Result<()> {
-    // ratatui::run(|terminal| App::new(String::new()).run(terminal))?;
-    let content = "Hello my name is Simon";
-    let content: Vec<char> = content.chars().collect();
+    ratatui::run(|terminal| App::new("hello we ❤️ you".to_string()).run(terminal))?;
+    let s = String::from("hello");
+    let g = s.graphemes(true).collect::<Vec<&str>>();
+    // let content = "Hello my name is Simon";
+    // let content: Vec<char> = content.chars().collect();
 
-    let rope = build_rope(&content, 0, content.len() - 1).0;
+    // let rope = build_rope(&content, 0, content.len() - 1).0;
 
-    let sub_rope = find_sub_rope(rope.as_ref(), 22, 24);
+    // let sub_rope = find_sub_rope(rope.as_ref(), 21, 24);
 
-    if let Some(new) = sub_rope {
-        print_tree(&new).unwrap();
-    }else{
-        println!("bounds failure");
-    }
+    // if let Some(new) = sub_rope {
+    //     print_tree(&new).unwrap();
+    // }else{
+    //     println!("bounds failure");
+    // }
 
     Ok(())
 }
