@@ -28,7 +28,7 @@ impl Node {
         }
     }
     pub fn is_balanced(&self) -> bool {
-        self.length >= FIBONACCI[self.depth + 2]
+        self.length>= FIBONACCI[self.depth + 2]
     }
 
     pub fn right(&self) -> Option<&Node> {
@@ -219,13 +219,13 @@ pub fn collect_string(node: &Node, content: &mut String) {
     }
 }
 
-pub fn index(node: &Node, index: usize) -> Option<char> {
+pub fn index(node: &Node, index: usize) -> Option<&str> {
     let mut index = index;
     let mut current_node = Some(node);
     while let Some(rope_node) = current_node {
         match rope_node.str_content {
             Some(ref content) => {
-                let mut characters = content.chars();
+                let mut characters = content.graphemes(true);
                 let letter = characters.nth(index);
                 return letter;
             }
@@ -248,14 +248,14 @@ pub fn split(rope: &mut Node, index: usize, cut_nodes: &mut Vec<Box<Node>>) -> (
         Some(ref content) => {
             if index == 0 {
                 (true, false)
-            } else if index < content.chars().count() {
+            } else if index < rope.length {
                 let full_content: Vec<&str> = content.graphemes(true).collect();
                 let left_content = &full_content[0..index];
                 let left_str: String = left_content.iter().copied().collect();
                 let right_content = &full_content[index..];
                 let right_str = right_content.iter().copied().collect();
                 let left = Node::new(left_str,index);
-                let right = Node::new(right_str,content.len()-index+1);
+                let right = Node::new(right_str,full_content.len()-index);
                 cut_nodes.push(Box::new(right));
                 let parent = Node {
                     weight: left_content.len(),

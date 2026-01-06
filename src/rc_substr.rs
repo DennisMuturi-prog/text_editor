@@ -34,6 +34,7 @@ impl RcSubstr {
 impl Deref for RcSubstr {
     type Target = str;
     fn deref(&self) -> &str {
+        // println!("span is {:?} and str is {}",self.boundaries,self.string);
         &self.string[self.boundaries[self.span.start]..self.boundaries[self.span.end]]
     }
 }

@@ -22,9 +22,30 @@ fn main() -> io::Result<()> {
     // println!("inner is {}",inner[1]);
 
     let rope=build_rope(&g, 0, g.len()-1).0;
-    println!("rope is {:?}",rope);
+    println!("original rope");
     
     print_tree(rope.as_ref()).unwrap();
+    
+    let rope=insert(rope, 6, "you 😇".to_string());
+    println!("new rope");
+    
+    print_tree(rope.as_ref()).unwrap();
+    
+    if let Some(sub_rope)=find_sub_rope(&rope, 11, 20){
+        println!("sub rope");
+        
+        print_tree(&sub_rope).unwrap();
+        
+    }
+    if let Some(item)=index(&rope, 10){
+        println!("item is {}",item);        
+    }
+    
+    let rope=remove(rope, 14,1);
+    println!("removed something rope");
+    
+    print_tree(rope.as_ref()).unwrap();
+    
     // let content = "Hello my name is Simon";
     // let content: Vec<char> = content.chars().collect();
 
