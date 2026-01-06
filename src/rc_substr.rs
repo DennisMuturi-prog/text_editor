@@ -16,7 +16,7 @@ pub struct RcSubstr {
 
 impl RcSubstr {
     pub fn new(string: Rc<str>) -> Self {
-        let span = 0..string.graphemes(true).count()-1;
+        let span = 0..string.graphemes(true).count();
         let boundaries=find_grapheme_boundaries(&string);
         Self { string, span,boundaries }
     }
@@ -34,7 +34,7 @@ impl RcSubstr {
 impl Deref for RcSubstr {
     type Target = str;
     fn deref(&self) -> &str {
-        &self.string[self.boundaries[self.span.start]..=self.boundaries[self.span.end]]
+        &self.string[self.boundaries[self.span.start]..self.boundaries[self.span.end]]
     }
 }
 pub fn find_grapheme_boundaries(content: &Rc<str>) -> Rc<[usize]> {

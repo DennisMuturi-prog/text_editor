@@ -9,15 +9,22 @@ use text_editor::{
     rc_substr::{RcSubstr, find_grapheme_boundaries},
     rope::{
         Node, build_rope, collect_string, concatenate, find_length, find_sub_rope, index, insert,
-        make_unbalanced_rope, rebalance, remove, sub_rope,
+        rebalance, remove, sub_rope,
     },
 };
 use unicode_segmentation::UnicodeSegmentation;
 
 fn main() -> io::Result<()> {
-    ratatui::run(|terminal| App::new("hello we ❤️ you".to_string()).run(terminal))?;
-    let s = String::from("hello");
+    // ratatui::run(|terminal| App::new("hello we ❤️ you".to_string()).run(terminal))?;
+    let s = String::from("hello we ❤️ you");
     let g = s.graphemes(true).collect::<Vec<&str>>();
+    // let inner :Vec<&str>=  s.graphemes(true).collect();
+    // println!("inner is {}",inner[1]);
+
+    let rope=build_rope(&g, 0, g.len()-1).0;
+    println!("rope is {:?}",rope);
+    
+    print_tree(rope.as_ref()).unwrap();
     // let content = "Hello my name is Simon";
     // let content: Vec<char> = content.chars().collect();
 
