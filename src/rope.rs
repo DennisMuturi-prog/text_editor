@@ -617,3 +617,14 @@ pub fn make_unbalanced_rope() -> Box<Node> {
 
     rope
 }
+pub fn sub_rope(node:&Node,starting:usize,ending:usize)->Node{
+    match node.str_content{
+        Some(content) =>{
+            let content=content.clone();
+            
+        },
+        None => {
+            
+        },
+    }
+}
