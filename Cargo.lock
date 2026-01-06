@@ -1532,6 +1532,7 @@ version = "0.1.0"
 dependencies = [
  "ptree",
  "ratatui",
+ "unicode-segmentation",
 ]
 
 [[package]]

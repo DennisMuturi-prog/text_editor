@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 ptree = "0.5.2"
 ratatui = "0.30.0"
+unicode-segmentation = "1.12.0"
