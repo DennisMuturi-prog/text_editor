@@ -662,7 +662,8 @@ pub fn find_sub_str(node: &Node, starting: usize, ending: usize,collected_string
         return None;
     }
     let ending=min(node.length-1,ending);
-    Some(sub_str(node, starting, ending,collected_string))
+    sub_str(node, starting, ending,collected_string);
+    Some(())
     
 }
 
