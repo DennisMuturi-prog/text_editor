@@ -1,4 +1,4 @@
-use std::io;
+use std::{cmp::max, io};
 
 use ratatui::{
     DefaultTerminal, Frame,
@@ -22,7 +22,7 @@ pub struct App {
     column_number: usize,
     rope: Option<Box<Node>>,
     index:usize,
-    upper_limit_for_current_line:usize
+    lines_widths:Vec<usize>
 }
 #[derive(Default)]
 enum Mode {
@@ -34,13 +34,13 @@ enum Mode {
 
 impl App {
     pub fn new(starting_string: String) -> Self {
-        let copy_of_string=starting_string.clone();
-        let content:Vec<&str>=starting_string.graphemes(true).collect();
+        let binding = starting_string.clone();
+        let content:Vec<&str> = binding.graphemes( true).collect::<Vec<&str>>();
+        let lines_widths=get_line_widths(&starting_string).0;
         Self {
             rope: Some(build_rope(&content, 0, content.len()-1).0),
-            index:content.len(),
-            text: copy_of_string,
-            column_number:content.len(),
+            text: starting_string,
+            lines_widths,
             ..App::default()
         }
     }
@@ -58,6 +58,7 @@ impl App {
             self.text.clear();
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
+            self.lines_widths[self.row_number]-=1;
         }
         self.move_cursor_left();
     }
@@ -68,7 +69,7 @@ impl App {
             self.text.clear();
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
-            
+            self.lines_widths[self.row_number]+=1;  
         }
         self.move_cursor_right();
     }
@@ -89,16 +90,8 @@ impl App {
     fn move_cursor_left(&mut self) {
         self.index=self.index.saturating_sub(1);
         if self.column_number==0{
-            let new_column= self.text.lines().nth(self.row_number.saturating_sub(1));
+            self.column_number=self.lines_widths[self.row_number.saturating_sub(1)];
             self.row_number=self.row_number.saturating_sub(1);
-            self.column_number=match new_column{
-                Some(new_val) => {
-                    new_val.chars().count()
-                },
-                None =>{
-                    0
-                },
-            }
         }else{
             let cursor_moved_left = self.column_number-1;
             self.column_number = self.clamp_cursor(cursor_moved_left); 
@@ -117,7 +110,7 @@ impl App {
         self.column_number = self.clamp_cursor(cursor_moved_right);
     }
     fn clamp_cursor(&self, new_cursor_pos: usize) -> usize {
-        new_cursor_pos.clamp(0, self.text.chars().count())
+        new_cursor_pos.clamp(0, self.lines_widths[self.row_number])
     }
 
     fn draw(&self, frame: &mut Frame) {
@@ -296,4 +289,16 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             Constraint::Percentage((100 - percent_x) / 2),
         ])
         .split(popup_layout[1])[1] // Return the middle chunk
+}
+
+pub fn get_line_widths(content:&str)->(Vec<usize>,usize){
+    let mut lines_widths:Vec<usize>=vec![0;20];
+    // max(100,content.len())/5
+    let mut i=0;
+    for (index,line_count) in content.lines().map(|a|a.len()).enumerate(){
+        lines_widths[index]=line_count;  
+        i+=1;
+    };
+    (lines_widths,i)
+    
 }

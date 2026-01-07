@@ -5,17 +5,14 @@ use ptree::{
     print_tree_with,
 };
 use text_editor::{
-    app::App,
-    rc_substr::{RcSubstr, find_grapheme_boundaries},
-    rope::{
+    app::App, gap_buffer::GapBuffer, rc_substr::{RcSubstr, find_grapheme_boundaries}, rope::{
         Node, build_rope, collect_string, concatenate, find_length, find_sub_rope, find_sub_str,
         index, insert, rebalance, remove, sub_rope,
-    },
+    }
 };
 use unicode_segmentation::UnicodeSegmentation;
 
 fn main() -> io::Result<()> {
-    // ratatui::run(|terminal| App::new("hello we ❤️ you".to_string()).run(terminal))?;
     //
     
 
@@ -34,10 +31,6 @@ fn main() -> io::Result<()> {
         }
         
     };
-    let path=Path::new(&file_path);
-    
-    println!("path extracted is {:?}",path);
-    
     let mut file=match File::open(&file_path){
         Ok(existing_file) => {
             existing_file
@@ -61,7 +54,21 @@ fn main() -> io::Result<()> {
     let mut contents=String::new();
     
     file.read_to_string(&mut contents)?;
-    println!("File Contents:\n{}", contents);
+    let mut gap_buffer=GapBuffer::new(contents);
+    println!("the buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    gap_buffer.add_item(1);
+    
+    println!("the new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    gap_buffer.add_item(5);
+    println!("the second new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    gap_buffer.add_item(1);
+    println!("the third new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    let item =gap_buffer.index(9);
+    println!("item is {:?}",item);
+    
+    
+    // ratatui::run(|terminal| App::new(contents).run(terminal))?;
+    
     
 
     // let s = String::from("hello we ❤️ you");
