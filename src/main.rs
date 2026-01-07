@@ -8,8 +8,7 @@ use text_editor::{
     app::App,
     rc_substr::{RcSubstr, find_grapheme_boundaries},
     rope::{
-        Node, build_rope, collect_string, concatenate, find_length, find_sub_rope, index, insert,
-        rebalance, remove, sub_rope,
+        Node, build_rope, collect_string, concatenate, find_length, find_sub_rope, find_sub_str, index, insert, rebalance, remove, sub_rope
     },
 };
 use unicode_segmentation::UnicodeSegmentation;
@@ -31,10 +30,11 @@ fn main() -> io::Result<()> {
     
     print_tree(rope.as_ref()).unwrap();
     
-    if let Some(sub_rope)=find_sub_rope(&rope, 11, 20){
-        println!("sub rope");
+    let mut collected_string=String::new();
+    
+    if let Some(_)=find_sub_str(&rope, 10, 29,&mut collected_string){
         
-        print_tree(&sub_rope).unwrap();
+        println!("collected sub str:{}",collected_string);
         
     }
     if let Some(item)=index(&rope, 10){

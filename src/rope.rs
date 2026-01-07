@@ -656,3 +656,37 @@ pub fn find_sub_rope(node: &Node, starting: usize, ending: usize)->Option<Node>{
     Some(sub_rope(node, starting, ending))
     
 }
+
+pub fn find_sub_str(node: &Node, starting: usize, ending: usize,collected_string:&mut String)->Option<()>{
+    if starting>=node.length{
+        return None;
+    }
+    let ending=min(node.length-1,ending);
+    Some(sub_str(node, starting, ending,collected_string))
+    
+}
+
+
+pub fn sub_str(node: &Node, starting: usize, ending: usize,collected_string:&mut String)  {
+    match node.str_content {
+        Some(ref content) => {
+            let content = content.substr(starting..ending+1);
+            collected_string.push_str(content.deref());
+            
+        }
+        None => {
+            if ending < node.weight {
+                let left = node.left.as_ref().unwrap();
+                sub_str(left, starting, ending,collected_string);
+            } else if starting >= node.weight {
+                let right = node.right.as_ref().unwrap();
+                sub_str(right, starting - node.weight, ending - node.weight,collected_string);
+            } else {
+                let left = node.left.as_ref().unwrap();
+                sub_str(left, starting, node.weight - 1,collected_string);
+                let right = node.right.as_ref().unwrap();
+                sub_str(right, 0, ending - node.weight,collected_string);
+            }
+        }
+    }
+}
