@@ -32,7 +32,7 @@ fn main() -> io::Result<()> {
     
     let mut collected_string=String::new();
     
-    if let Some(_)=find_sub_str(&rope, 10, 29,&mut collected_string){
+    if let Some(_)=find_sub_str(&rope, 11, 25,&mut collected_string){
         
         println!("collected sub str:{}",collected_string);
         

@@ -9,7 +9,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct RcSubstr {
-    pub string: Rc<str>,
+    string: Rc<str>,
     span: Range<usize>,
     boundaries:Rc<[usize]>
 }
@@ -28,6 +28,11 @@ impl RcSubstr {
             span: (self.span.start + span.start)..(self.span.start + span.end),
             boundaries: Rc::clone(&self.boundaries)
         }
+    }
+    pub fn get_part_of_string(&self,span: Range<usize>)->&str{
+        &self.string[self.boundaries[self.span.start+span.start]..self.boundaries[self.span.start+span.end]]
+        
+        
     }
 }
 

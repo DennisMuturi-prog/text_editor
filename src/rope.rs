@@ -670,9 +670,8 @@ pub fn find_sub_str(node: &Node, starting: usize, ending: usize,collected_string
 pub fn sub_str(node: &Node, starting: usize, ending: usize,collected_string:&mut String)  {
     match node.str_content {
         Some(ref content) => {
-            let content = content.substr(starting..ending+1);
-            collected_string.push_str(content.deref());
-            
+            let content = content.get_part_of_string(starting..ending+1);
+            collected_string.push_str(content);  
         }
         None => {
             if ending < node.weight {
