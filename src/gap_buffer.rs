@@ -25,7 +25,10 @@ impl GapBuffer {
         }
     }
 
-    pub fn index(&self, index: usize) -> Option<usize> {
+    pub fn index(&mut self, index: usize) -> Option<usize> {
+        if self.ending_of_gap<self.starting_of_gap{
+            self.resize();
+        }
         if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
             return None;
         }
@@ -40,6 +43,9 @@ impl GapBuffer {
     }
 
     pub fn increase(&mut self, index: usize) -> Option<()> {
+        if self.ending_of_gap<self.starting_of_gap{
+            self.resize();
+        }
         if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
             return None;
         }
@@ -54,18 +60,39 @@ impl GapBuffer {
             Some(())
         }
     }
-    pub fn decrease(&mut self, index: usize) -> Option<()> {
+    pub fn decrease_with_count(&mut self, index: usize,count:usize) -> Option<()> {
+        if self.ending_of_gap<self.starting_of_gap{
+            self.resize();
+        }
         if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
             return None;
         }
 
         if index < self.starting_of_gap {
-            self.buffer[index] -= 1;
+            self.buffer[index]=self.buffer[index].saturating_sub(count);
             Some(())
         } else {
             let offset = index - self.starting_of_gap + 1;
             let new_index = self.ending_of_gap + offset;
-            self.buffer[new_index] -= 1;
+            self.buffer[new_index] =self.buffer[new_index].saturating_sub(count);
+            Some(())
+        }
+    }
+    pub fn decrease(&mut self, index: usize) -> Option<()> {
+        if self.ending_of_gap<self.starting_of_gap{
+            self.resize();
+        }
+        if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
+            return None;
+        }
+
+        if index < self.starting_of_gap {
+            self.buffer[index]=self.buffer[index].saturating_sub(1);
+            Some(())
+        } else {
+            let offset = index - self.starting_of_gap + 1;
+            let new_index = self.ending_of_gap + offset;
+            self.buffer[new_index] =self.buffer[new_index].saturating_sub(1);
             Some(())
         }
     }
@@ -76,6 +103,38 @@ impl GapBuffer {
         }
         self.starting_of_gap = previous_len;
         self.ending_of_gap = self.buffer.len() - 1;
+    }
+    
+    pub fn add_item_with_count(&mut self, index: usize,count:usize) {
+        if self.ending_of_gap < self.starting_of_gap {
+            self.resize();
+        }
+        if index == self.starting_of_gap {
+            self.buffer[index] = count;
+            self.starting_of_gap += 1;
+            return;
+        }
+        let gap_len = (self.ending_of_gap - self.starting_of_gap) + 1;
+        if index > self.starting_of_gap {
+            for offset in 0..index - self.starting_of_gap {
+                let src_index = self.ending_of_gap + offset + 1;
+                let dest_index = self.starting_of_gap + offset;
+                let item = self.buffer[src_index];
+                self.buffer[dest_index] = item;
+                // self.buffer[src_index] = 0;
+            }
+        } else {
+            for src_index in (index..self.starting_of_gap).rev() {
+                let distance_from_start_of_gap = self.starting_of_gap - src_index;
+                let dest_index = self.ending_of_gap - (distance_from_start_of_gap - 1);
+                let item = self.buffer[src_index];
+                self.buffer[dest_index] = item;
+                // self.buffer[src_index] = 0;
+            }
+        }
+        self.buffer[index] = count;
+        self.starting_of_gap = index + 1;
+        self.ending_of_gap = self.starting_of_gap + gap_len - 2;
     }
     pub fn add_item(&mut self, index: usize) {
         if self.ending_of_gap < self.starting_of_gap {
@@ -110,6 +169,9 @@ impl GapBuffer {
     }
 
     pub fn remove_item(&mut self, index: usize) -> Option<()> {
+        if self.ending_of_gap<self.starting_of_gap{
+            self.resize();
+        }
         if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
             return None;
         }

@@ -61,11 +61,10 @@ impl App {
             self.text.clear();
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
-            if self.column_number==0{
-                self.lines_widths.remove_item(self.row_number);  
-            }else{
+            if self.column_number == 0 && self.row_number > 0 {
+                self.lines_widths.remove_item(self.row_number);
+            } else {
                 self.lines_widths.decrease(self.row_number);
-                
             }
         }
         self.move_cursor_left();
@@ -78,7 +77,6 @@ impl App {
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
             self.lines_widths.increase(self.row_number);
-                
         }
         self.move_cursor_right();
     }
@@ -90,8 +88,16 @@ impl App {
             self.text.clear();
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
-            self.index += 1;
-            self.lines_widths.add_item(self.row_number + 1);
+            let current_line_length=self.lines_widths.index(self.row_number).unwrap_or_default();
+            
+            if self.column_number<current_line_length {
+                self.lines_widths.add_item_with_count(self.row_number + 1,current_line_length-self.column_number);
+                self.lines_widths.decrease_with_count(self.row_number ,current_line_length-self.column_number);
+                self.index += 1;
+            } else {
+                self.index += 1;
+                self.lines_widths.add_item(self.row_number + 1);
+            }
         }
         self.move_cursor_down();
     }
@@ -99,8 +105,13 @@ impl App {
     fn move_cursor_left(&mut self) {
         self.index = self.index.saturating_sub(1);
         if self.column_number == 0 {
-            self.column_number = self.lines_widths.index(self.row_number.saturating_sub(1)).unwrap_or_default();
-            self.row_number = self.row_number.saturating_sub(1);
+            if self.row_number > 0 {
+                self.column_number = self
+                    .lines_widths
+                    .index(self.row_number - 1)
+                    .unwrap_or_default();
+                self.row_number -= 1;
+            }
         } else {
             let cursor_moved_left = self.column_number - 1;
             self.column_number = cursor_moved_left;
@@ -114,28 +125,22 @@ impl App {
 
     fn move_cursor_right(&mut self) {
         if self.column_number == self.lines_widths.index(self.row_number).unwrap_or_default() {
-            if self.lines_widths.index(self.row_number+1).is_some(){
+            if self.lines_widths.index(self.row_number + 1).is_some() {
                 self.index += 1;
-                self.row_number+=1;
-                self.column_number=0;  
-            }else{
-                if self.lines_widths.index(self.row_number).unwrap_or_default()==0{
+                self.row_number += 1;
+                self.column_number = 0;
+            } else {
+                let value=self.lines_widths.index(self.row_number).unwrap_or_default();
+                if value == 0 {
                     return;
                 }
-                self.jump_to_new_line();   
+                self.jump_to_new_line();
             }
-            
         } else {
             self.index += 1;
             let cursor_moved_right = self.column_number.saturating_add(1);
             self.column_number = cursor_moved_right;
         }
-    }
-    fn clamp_cursor(&self, new_cursor_pos: usize) -> usize {
-        new_cursor_pos.clamp(
-            0,
-            self.lines_widths.index(self.row_number).unwrap_or_default(),
-        )
     }
 
     fn draw(&self, frame: &mut Frame) {
