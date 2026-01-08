@@ -1,5 +1,5 @@
 use crate::app::get_line_widths;
-
+#[derive(Default)]
 pub struct GapBuffer {
     buffer: Vec<usize>,
     starting_of_gap: usize,
@@ -8,8 +8,8 @@ pub struct GapBuffer {
 
 impl GapBuffer {
     
-    pub fn new(content: String) -> Self {
-        let (buffer,starting_of_gap,ending_of_gap) = get_line_widths(&content);
+    pub fn new(content: &str) -> Self {
+        let (buffer,starting_of_gap,ending_of_gap) = get_line_widths(content);
         Self {
             buffer,
             starting_of_gap,
@@ -83,7 +83,7 @@ impl GapBuffer {
             self.resize();
         }
         if index == self.starting_of_gap {
-            self.buffer[index] = 999;
+            self.buffer[index] = 0;
             self.starting_of_gap += 1;
             return;
         }
@@ -94,19 +94,18 @@ impl GapBuffer {
                 let dest_index = self.starting_of_gap + offset;
                 let item = self.buffer[src_index];
                 self.buffer[dest_index] = item;
-                self.buffer[src_index] = 0;
+                // self.buffer[src_index] = 0;
             }
         } else {
-            let j = self.starting_of_gap - index;
             for src_index in (index..self.starting_of_gap).rev(){
                 let distance_from_start_of_gap=self.starting_of_gap-src_index;
                 let dest_index = self.ending_of_gap - (distance_from_start_of_gap-1);
                 let item = self.buffer[src_index];
                 self.buffer[dest_index] = item;
-                self.buffer[src_index] = 0;
+                // self.buffer[src_index] = 0;
             }
         }
-        self.buffer[index] = 999;
+        self.buffer[index] =0;
         self.starting_of_gap = index + 1;
         self.ending_of_gap = self.starting_of_gap + gap_len - 2;
     }

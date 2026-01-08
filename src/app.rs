@@ -12,7 +12,10 @@ use ratatui::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::rope::{Node, build_rope, collect_string, insert, remove};
+use crate::{
+    gap_buffer::GapBuffer,
+    rope::{Node, build_rope, collect_string, insert, remove},
+};
 #[derive(Default)]
 pub struct App {
     text: String,
@@ -21,8 +24,8 @@ pub struct App {
     row_number: usize,
     column_number: usize,
     rope: Option<Box<Node>>,
-    index:usize,
-    lines_widths:Vec<usize>
+    index: usize,
+    lines_widths: GapBuffer,
 }
 #[derive(Default)]
 enum Mode {
@@ -35,10 +38,10 @@ enum Mode {
 impl App {
     pub fn new(starting_string: String) -> Self {
         let binding = starting_string.clone();
-        let content:Vec<&str> = binding.graphemes( true).collect::<Vec<&str>>();
-        let lines_widths=get_line_widths(&starting_string).0;
+        let content: Vec<&str> = binding.graphemes(true).collect::<Vec<&str>>();
+        let lines_widths = GapBuffer::new(&starting_string);
         Self {
-            rope: Some(build_rope(&content, 0, content.len()-1).0),
+            rope: Some(build_rope(&content, 0, content.len() - 1).0),
             text: starting_string,
             lines_widths,
             ..App::default()
@@ -58,7 +61,7 @@ impl App {
             self.text.clear();
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
-            self.lines_widths[self.row_number]-=1;
+            self.lines_widths.decrease(self.row_number);
         }
         self.move_cursor_left();
     }
@@ -69,48 +72,60 @@ impl App {
             self.text.clear();
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
-            self.lines_widths[self.row_number]+=1;  
+            self.lines_widths.increase(self.row_number);
+                
         }
         self.move_cursor_right();
     }
-    
+
     fn jump_to_new_line(&mut self) {
         let old_rope = self.rope.take();
         if let Some(old_one) = old_rope {
-            
             let new_rope = insert(old_one, self.index, "\n".to_string());
             self.text.clear();
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
-            self.index+=1;
+            self.index += 1;
+            self.lines_widths.add_item(self.row_number + 1);
         }
         self.move_cursor_down();
     }
 
     fn move_cursor_left(&mut self) {
-        self.index=self.index.saturating_sub(1);
-        if self.column_number==0{
-            self.column_number=self.lines_widths[self.row_number.saturating_sub(1)];
-            self.row_number=self.row_number.saturating_sub(1);
-        }else{
-            let cursor_moved_left = self.column_number-1;
-            self.column_number = self.clamp_cursor(cursor_moved_left); 
+        self.index = self.index.saturating_sub(1);
+        if self.column_number == 0 {
+            self.column_number = self.lines_widths.index(self.row_number.saturating_sub(1)).unwrap_or_default();
+            self.row_number = self.row_number.saturating_sub(1);
+        } else {
+            let cursor_moved_left = self.column_number - 1;
+            self.column_number = cursor_moved_left;
         }
-        
     }
     fn move_cursor_down(&mut self) {
-        self.column_number=0;
+        self.column_number = 0;
         let cursor_moved_down = self.row_number.saturating_add(1);
         self.row_number = cursor_moved_down;
     }
 
     fn move_cursor_right(&mut self) {
-        self.index+=1;
-        let cursor_moved_right = self.column_number.saturating_add(1);
-        self.column_number = self.clamp_cursor(cursor_moved_right);
+        self.index += 1;
+        if self.column_number == self.lines_widths.index(self.row_number).unwrap_or_default() {
+            self.row_number+=1;
+            if self.lines_widths.index(self.row_number).is_none(){
+                self.lines_widths.add_item(self.row_number);
+            }
+            self.column_number=0      
+            
+        } else {
+            let cursor_moved_right = self.column_number.saturating_add(1);
+            self.column_number = cursor_moved_right;
+        }
     }
     fn clamp_cursor(&self, new_cursor_pos: usize) -> usize {
-        new_cursor_pos.clamp(0, self.lines_widths[self.row_number])
+        new_cursor_pos.clamp(
+            0,
+            self.lines_widths.index(self.row_number).unwrap_or_default(),
+        )
     }
 
     fn draw(&self, frame: &mut Frame) {
@@ -139,13 +154,15 @@ impl App {
             Paragraph::new(Text::styled(self.text(), Style::default().fg(Color::White)))
                 .block(title_block);
         frame.render_widget(text_content, chunks[1]);
-        if let Mode::Editing = self.mode { frame.set_cursor_position(Position::new(
-            // Draw the cursor at the current position in the input field.
-            // This position is can be controlled via the left and right arrow key
-            chunks[1].x + self.column_number as u16 + 1,
-            // Move one line down, from the border to the input line
-            chunks[1].y + 1+self.row_number as u16,
-        )) }
+        if let Mode::Editing = self.mode {
+            frame.set_cursor_position(Position::new(
+                // Draw the cursor at the current position in the input field.
+                // This position is can be controlled via the left and right arrow key
+                chunks[1].x + self.column_number as u16 + 1,
+                // Move one line down, from the border to the input line
+                chunks[1].y + 1 + self.row_number as u16,
+            ))
+        }
         let footer_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
@@ -163,7 +180,10 @@ impl App {
             Span::styled(" | ", Style::default().fg(Color::White)),
             // The final section of the text, with hints on what the user is editing
             Span::styled(
-                format!("column {} row {} index:{}", self.column_number, self.row_number,self.index),
+                format!(
+                    "column {} row {} index:{}",
+                    self.column_number, self.row_number, self.index
+                ),
                 Style::default().fg(Color::Green),
             ),
         ];
@@ -291,23 +311,22 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1] // Return the middle chunk
 }
 
-pub fn get_line_widths(content:&str)->(Vec<usize>,usize,usize){
+pub fn get_line_widths(content: &str) -> (Vec<usize>, usize, usize) {
     //TODO add support for grapheme and utf8
-    let mut lines:Vec<_>=content.lines().collect();
-    let lines_counts=lines.len();
-    let mut lines_widths:Vec<usize>=Vec::with_capacity(lines_counts*5);
-    
-    let second_part=lines.split_off(lines_counts/2);
+    let mut lines: Vec<_> = content.lines().collect();
+    let lines_counts = lines.len();
+    let mut lines_widths: Vec<usize> = Vec::with_capacity(lines_counts * 5);
+
+    let second_part = lines.split_off(lines_counts / 2);
     // max(100,content.len())/5
-    for line_count in lines.into_iter().map(|a|a.len()){
+    for line_count in lines.into_iter().map(|a| a.len()) {
         lines_widths.push(line_count);
-    };
-    let gap=(lines_counts*2)-(lines_counts/2);
-    lines_widths.extend(std::iter::repeat_n(0,gap ));
-    
-    for line_count in second_part.into_iter().map(|a|a.len()){
+    }
+    let gap = (lines_counts * 2) - (lines_counts / 2);
+    lines_widths.extend(std::iter::repeat_n(0, gap));
+
+    for line_count in second_part.into_iter().map(|a| a.len()) {
         lines_widths.push(line_count);
-    };
-    (lines_widths,lines_counts/2,(lines_counts*2)-1)
-    
+    }
+    (lines_widths, lines_counts / 2, (lines_counts * 2) - 1)
 }

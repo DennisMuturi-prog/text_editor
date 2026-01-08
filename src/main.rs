@@ -54,27 +54,27 @@ fn main() -> io::Result<()> {
     let mut contents=String::new();
     
     file.read_to_string(&mut contents)?;
-    let mut gap_buffer=GapBuffer::new(contents);
-    println!("the buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
-    gap_buffer.add_item(1);
+    // let mut gap_buffer=GapBuffer::new(contents);
+    // println!("the buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    // gap_buffer.add_item(1);
     
-    println!("the new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
-    gap_buffer.add_item(5);
-    println!("the second new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
-    gap_buffer.add_item(1);
-    println!("the third new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
-    let item =gap_buffer.index(9);
-    println!("item is {:?}",item);
+    // println!("the new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    // gap_buffer.add_item(5);
+    // println!("the second new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    // gap_buffer.add_item(1);
+    // println!("the third new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    // let item =gap_buffer.index(9);
+    // println!("item is {:?}",item);
     
-    gap_buffer.add_item(5);
-    println!("the fourth new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
-    
-    
-    gap_buffer.increase(2);
-    println!("the fifth new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    // gap_buffer.add_item(5);
+    // println!("the fourth new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
     
     
-    // ratatui::run(|terminal| App::new(contents).run(terminal))?;
+    // gap_buffer.increase(2);
+    // println!("the fifth new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    
+    
+    ratatui::run(|terminal| App::new(contents).run(terminal))?;
     
     
 
