@@ -57,15 +57,27 @@ impl App {
     fn delete_char(&mut self) {
         let old_rope = self.rope.take();
         if let Some(old_one) = old_rope {
+            if self.column_number == 0 && self.row_number > 0 {
+                if let Some(length_of_line_removed) = self.lines_widths.remove_item(self.row_number) {
+                    self.lines_widths
+                        .increase_with_count(self.row_number - 1, length_of_line_removed);
+                };
+            } else if self.column_number == 0 && self.row_number == 0 {
+                match self.lines_widths.index(1) {
+                    Some(_) => {
+                        self.lines_widths.remove_item(self.row_number);
+                    }
+                    None => {
+                        return;
+                    }
+                }
+            } else {
+                self.lines_widths.decrease(self.row_number);
+            }
             let new_rope = remove(old_one, self.index.saturating_sub(1), 1);
             self.text.clear();
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
-            if self.column_number == 0 && self.row_number > 0 {
-                self.lines_widths.remove_item(self.row_number);
-            } else {
-                self.lines_widths.decrease(self.row_number);
-            }
         }
         self.move_cursor_left();
     }
@@ -88,11 +100,15 @@ impl App {
             self.text.clear();
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
-            let current_line_length=self.lines_widths.index(self.row_number).unwrap_or_default();
-            
-            if self.column_number<current_line_length {
-                self.lines_widths.add_item_with_count(self.row_number + 1,current_line_length-self.column_number);
-                self.lines_widths.decrease_with_count(self.row_number ,current_line_length-self.column_number);
+            let current_line_length = self.lines_widths.index(self.row_number).unwrap_or_default();
+
+            if self.column_number < current_line_length {
+                self.lines_widths.add_item_with_count(
+                    self.row_number + 1,
+                    current_line_length - self.column_number,
+                );
+                self.lines_widths
+                    .decrease_with_count(self.row_number, current_line_length - self.column_number);
                 self.index += 1;
             } else {
                 self.index += 1;
@@ -103,6 +119,22 @@ impl App {
     }
 
     fn move_cursor_left(&mut self) {
+        self.index = self.index.saturating_sub(1);
+        if self.column_number == 0 {
+            if self.row_number > 0 {
+                self.column_number = self
+                    .lines_widths
+                    .index(self.row_number - 1)
+                    .unwrap_or_default();
+                self.row_number -= 1;
+            }
+        } else {
+            let cursor_moved_left = self.column_number - 1;
+            self.column_number = cursor_moved_left;
+        }
+    }
+    
+    fn move_cursor_up_due_to_delete(&mut self,previous_count:usize) {
         self.index = self.index.saturating_sub(1);
         if self.column_number == 0 {
             if self.row_number > 0 {
@@ -130,7 +162,7 @@ impl App {
                 self.row_number += 1;
                 self.column_number = 0;
             } else {
-                let value=self.lines_widths.index(self.row_number).unwrap_or_default();
+                let value = self.lines_widths.index(self.row_number).unwrap_or_default();
                 if value == 0 {
                     return;
                 }
