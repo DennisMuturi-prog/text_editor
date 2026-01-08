@@ -292,7 +292,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 }
 
 pub fn get_line_widths(content:&str)->(Vec<usize>,usize){
-    let mut lines_widths:Vec<usize>=vec![0;20];
+    let mut lines_widths:Vec<usize>=vec![0;9];
     // max(100,content.len())/5
     let mut i=0;
     for (index,line_count) in content.lines().map(|a|a.len()).enumerate(){

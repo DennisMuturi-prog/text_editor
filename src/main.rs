@@ -66,6 +66,13 @@ fn main() -> io::Result<()> {
     let item =gap_buffer.index(9);
     println!("item is {:?}",item);
     
+    gap_buffer.add_item(5);
+    println!("the fourth new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    
+    
+    gap_buffer.decrease(0);
+    println!("the fifth new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    
     
     // ratatui::run(|terminal| App::new(contents).run(terminal))?;
     
