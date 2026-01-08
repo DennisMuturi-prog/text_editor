@@ -56,11 +56,13 @@ impl App {
     }
     fn delete_char(&mut self) {
         let old_rope = self.rope.take();
+        let mut count_to_offset=0;
         if let Some(old_one) = old_rope {
             if self.column_number == 0 && self.row_number > 0 {
                 if let Some(length_of_line_removed) = self.lines_widths.remove_item(self.row_number) {
                     self.lines_widths
                         .increase_with_count(self.row_number - 1, length_of_line_removed);
+                    count_to_offset=length_of_line_removed;
                 };
             } else if self.column_number == 0 && self.row_number == 0 {
                 match self.lines_widths.index(1) {
@@ -68,6 +70,7 @@ impl App {
                         self.lines_widths.remove_item(self.row_number);
                     }
                     None => {
+                        println!("this caused it");
                         return;
                     }
                 }
@@ -79,7 +82,7 @@ impl App {
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
         }
-        self.move_cursor_left();
+        self.move_cursor_left(count_to_offset);
     }
     fn add_char(&mut self, value: char) {
         let old_rope = self.rope.take();
@@ -118,30 +121,14 @@ impl App {
         self.move_cursor_down();
     }
 
-    fn move_cursor_left(&mut self) {
+    fn move_cursor_left(&mut self,offset:usize) {
         self.index = self.index.saturating_sub(1);
         if self.column_number == 0 {
             if self.row_number > 0 {
                 self.column_number = self
                     .lines_widths
                     .index(self.row_number - 1)
-                    .unwrap_or_default();
-                self.row_number -= 1;
-            }
-        } else {
-            let cursor_moved_left = self.column_number - 1;
-            self.column_number = cursor_moved_left;
-        }
-    }
-    
-    fn move_cursor_up_due_to_delete(&mut self,previous_count:usize) {
-        self.index = self.index.saturating_sub(1);
-        if self.column_number == 0 {
-            if self.row_number > 0 {
-                self.column_number = self
-                    .lines_widths
-                    .index(self.row_number - 1)
-                    .unwrap_or_default();
+                    .unwrap_or_default()-offset;
                 self.row_number -= 1;
             }
         } else {
@@ -317,7 +304,7 @@ impl App {
                     KeyCode::Char(value) => {
                         self.add_char(value);
                     }
-                    KeyCode::Left => self.move_cursor_left(),
+                    KeyCode::Left => self.move_cursor_left(0),
                     KeyCode::Right => self.move_cursor_right(),
                     _ => {}
                 },

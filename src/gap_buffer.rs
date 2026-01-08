@@ -214,10 +214,11 @@ impl GapBuffer {
                 let dest_index = self.starting_of_gap + offset;
                 let item = self.buffer[src_index];
                 self.buffer[dest_index] = item;
-                // self.buffer[src_index] = 0;
+                self.buffer[src_index] = 0;
             }
             self.starting_of_gap += (index - self.ending_of_gap) - 1;
             self.ending_of_gap = index;
+            self.buffer[index]=0;
             Some(value_to_be_removed)
         } else {
             for offset in 0..(self.starting_of_gap - index) - 1 {
@@ -225,10 +226,11 @@ impl GapBuffer {
                 let dest_index = self.ending_of_gap - offset;
                 let item = self.buffer[src_index];
                 self.buffer[dest_index] = item;
-                // self.buffer[src_index] = 0;
+                self.buffer[src_index] = 0;
             }
             self.ending_of_gap -= (self.starting_of_gap - index) - 1;
             self.starting_of_gap = index;
+            self.buffer[index]=0;
             Some(value_to_be_removed)
         }
     }

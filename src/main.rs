@@ -54,7 +54,7 @@ fn main() -> io::Result<()> {
     let mut contents=String::new();
     file.read_to_string(&mut contents)?;
     
-    ratatui::run(|terminal| App::new(contents).run(terminal))?;
+    // ratatui::run(|terminal| App::new(contents).run(terminal))?;
     
     
     // let content: Vec<&str> = contents.graphemes(true).collect::<Vec<&str>>();
@@ -83,8 +83,14 @@ fn main() -> io::Result<()> {
     // println!("collected 2 is {}",collected);
     
     
-    // let mut gap_buffer=GapBuffer::new(contents);
-    // println!("the buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    let mut gap_buffer=GapBuffer::new(&contents);
+    println!("the buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    let at=gap_buffer.index(2);
+    println!("item at is {:?}",at);
+    let removed=gap_buffer.remove_item(7);
+    println!("removed is {:?}",removed);
+    println!("the second buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    
     // gap_buffer.add_item(1);
     
     // println!("the new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
