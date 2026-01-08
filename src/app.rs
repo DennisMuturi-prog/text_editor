@@ -128,7 +128,7 @@ impl App {
                 self.column_number = self
                     .lines_widths
                     .index(self.row_number - 1)
-                    .unwrap_or_default()-offset;
+                    .unwrap_or_default().saturating_sub(offset);
                 self.row_number -= 1;
             }
         } else {
