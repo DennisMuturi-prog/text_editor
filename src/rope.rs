@@ -1,6 +1,11 @@
-use std::{borrow::Cow, cmp::{max, min}, io, ops::Deref};
+use std::{
+    borrow::Cow,
+    cmp::{max, min},
+    io,
+    ops::Deref,
+};
 
-use ptree::{Style, TreeBuilder, TreeItem, item::StringItem};
+use ptree::{Style, TreeBuilder, TreeItem, item::StringItem, print_tree};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::rc_substr::RcSubstr;
@@ -16,7 +21,7 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(str_content: String,length:usize) -> Self {
+    pub fn new(str_content: String, length: usize) -> Self {
         let rc_str = str_content.into();
         Self {
             weight: length,
@@ -28,7 +33,7 @@ impl Node {
         }
     }
     pub fn is_balanced(&self) -> bool {
-        self.length>= FIBONACCI[self.depth + 2]
+        self.length >= FIBONACCI[self.depth + 2]
     }
 
     pub fn right(&self) -> Option<&Node> {
@@ -138,7 +143,7 @@ impl Node {
             merged
         };
         third_new_merged_cut_nodes = rebalance(third_new_merged_cut_nodes);
-        
+
         concatenate(original_rope, third_new_merged_cut_nodes)
     }
 }
@@ -149,10 +154,11 @@ impl TreeItem for Node {
         match self.str_content {
             Some(ref content) => {
                 let node_details = format!(
-                    "leaf :'{}' weight:{} depth:{}",
+                    "leaf :'{}' weight:{} depth:{} length:{}",
                     content.deref(),
                     self.weight,
-                    self.depth
+                    self.depth,
+                    self.length
                 );
                 write!(f, "{}", style.paint(node_details))
             }
@@ -197,9 +203,9 @@ pub fn build_rope(content: &[&str], starting: usize, ending: usize) -> (Box<Node
         rope.depth = depth;
         (Box::new(rope), depth)
     } else {
-        let before=content[starting..=ending].iter().copied() ;
-        let str_content: String =before.collect() ;
-        (Box::new(Node::new(str_content,(ending-starting)+1)), 0)
+        let before = content[starting..=ending].iter().copied();
+        let str_content: String = before.collect();
+        (Box::new(Node::new(str_content, (ending - starting) + 1)), 0)
     }
 }
 pub fn collect_string(node: &Node, content: &mut String) {
@@ -254,8 +260,8 @@ pub fn split(rope: &mut Node, index: usize, cut_nodes: &mut Vec<Box<Node>>) -> (
                 let left_str: String = left_content.iter().copied().collect();
                 let right_content = &full_content[index..];
                 let right_str = right_content.iter().copied().collect();
-                let left = Node::new(left_str,index);
-                let right = Node::new(right_str,full_content.len()-index);
+                let left = Node::new(left_str, index);
+                let right = Node::new(right_str, full_content.len() - index);
                 cut_nodes.push(Box::new(right));
                 let parent = Node {
                     weight: left_content.len(),
@@ -362,30 +368,39 @@ pub fn find_length(node: &Node) -> usize {
 
 pub fn concatenate(left: Box<Node>, right: Box<Node>) -> Box<Node> {
     if let Some(ref left_str_content) = left.str_content
-        && let Some(ref right_str_content) = right.str_content {
-            let left_count = left.length;
-            let right_count = right.length;
+        && let Some(ref right_str_content) = right.str_content
+    {
+        let left_count = left.length;
+        let right_count = right.length;
 
-            if left_count + right_count <= LEAF_LEN {
-                let combined_string: String =
-                    format!("{}{}", left_str_content.deref(), right_str_content.deref());
-                return Box::new(Node::new(combined_string,left_count+right_count));
-            }
+        if left_count + right_count <= LEAF_LEN {
+            let combined_string: String =
+                format!("{}{}", left_str_content.deref(), right_str_content.deref());
+            return Box::new(Node::new(combined_string, left_count + right_count));
         }
+    }
     if let Some(ref left_right_child) = left.right
         && let Some(ref str_content) = left_right_child.str_content
-            && let Some(ref right_str_content) = right.str_content {
-                let left_count = left_right_child.length;
-                let right_count = right.length;
+        && let Some(ref right_str_content) = right.str_content
+    {
+        let left_count = left_right_child.length;
+        let right_count = right.length;
 
-                if left_count + right_count <= LEAF_LEN {
-                    let combined_string: String =
-                        format!("{}{}", str_content.deref(), right_str_content.deref());
-                    let new_left_right_child = Node::new(combined_string,left_count+right_count);
-                    let new_node = Box::new(Node { depth: left.depth, length: left.length + right_count, left: left.left, weight: left.weight, right: Some(Box::new(new_left_right_child)), ..Default::default() });
-                    return rebalance(new_node);
-                }
-            }
+        if left_count + right_count <= LEAF_LEN {
+            let combined_string: String =
+                format!("{}{}", str_content.deref(), right_str_content.deref());
+            let new_left_right_child = Node::new(combined_string, left_count + right_count);
+            let new_node = Box::new(Node {
+                depth: left.depth,
+                length: left.length + right_count,
+                left: left.left,
+                weight: left.weight,
+                right: Some(Box::new(new_left_right_child)),
+                ..Default::default()
+            });
+            return rebalance(new_node);
+        }
+    }
     let new_concat = Node {
         depth: 1 + max(left.depth, right.depth),
         length: left.length + right.length,
@@ -399,16 +414,16 @@ pub fn concatenate(left: Box<Node>, right: Box<Node>) -> Box<Node> {
 
 pub fn insert(rope: Box<Node>, index: usize, content: String) -> Box<Node> {
     if rope.length == 0 {
-        let content= content.graphemes( true).collect::<Vec<&str>>();
+        let content = content.graphemes(true).collect::<Vec<&str>>();
         return build_rope(&content, 0, content.len() - 1).0;
     }
     if index == 0 {
-        let content= content.graphemes( true).collect::<Vec<&str>>();
+        let content = content.graphemes(true).collect::<Vec<&str>>();
         let new_node = build_rope(&content, 0, content.len() - 1).0;
         let new_rope = concatenate(new_node, rope);
         return new_rope;
     } else if index == rope.length {
-        let content= content.graphemes( true).collect::<Vec<&str>>();
+        let content = content.graphemes(true).collect::<Vec<&str>>();
         let new_node = build_rope(&content, 0, content.len() - 1).0;
         let new_rope = concatenate(rope, new_node);
         return new_rope;
@@ -421,7 +436,7 @@ pub fn insert(rope: Box<Node>, index: usize, content: String) -> Box<Node> {
     let original_rope = rebalance(original_rope);
 
     let new_merged_cut_nodes = {
-        let content= content.graphemes( true).collect::<Vec<&str>>();
+        let content = content.graphemes(true).collect::<Vec<&str>>();
         let (mut merged, _) = build_rope(&content, 0, content.len() - 1);
         for cut_node in cut_nodes {
             merged = concatenate(merged, cut_node);
@@ -440,11 +455,38 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> Box<Node> 
     if rope.length == 0 {
         return rope;
     }
+
     let mut original_rope = rope;
+
+    if let Some(ref mut val) = original_rope.str_content {
+        // Get the full string as graphemes
+        let full_content: Vec<&str> = val.graphemes(true).collect();
+
+        // Check bounds
+        if index >= full_content.len() {
+            return original_rope; // Nothing to remove
+        }
+
+        let end_index = std::cmp::min(index + length_to_cut, full_content.len());
+
+        // Split into three parts
+        let left_content = &full_content[0..index];
+        let right_content = &full_content[end_index..];
+
+        // Combine left and right
+        let new_str: String = left_content
+            .iter()
+            .copied()
+            .chain(right_content.iter().copied())
+            .collect();
+
+        // Create new leaf node
+        let new_node = Node::new(new_str, left_content.len() + right_content.len());
+        return Box::new(new_node);
+    }
     let mut cut_nodes = Vec::new();
 
     let _ = split(&mut original_rope, index, &mut cut_nodes);
-
     let original_rope = rebalance(original_rope);
 
     if cut_nodes.is_empty() {
@@ -493,7 +535,10 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> Box<Node> 
         merged
     };
     third_new_merged_cut_nodes = rebalance(third_new_merged_cut_nodes);
-    
+    if original_rope.length == 0 {
+        return third_new_merged_cut_nodes;
+    }
+
     concatenate(original_rope, third_new_merged_cut_nodes)
 }
 pub fn collect_leaves(node: Box<Node>, leaves: &mut Vec<Box<Node>>) {
@@ -512,6 +557,9 @@ pub fn collect_leaves(node: Box<Node>, leaves: &mut Vec<Box<Node>>) {
 
 pub fn rebalance(node: Box<Node>) -> Box<Node> {
     if node.is_balanced() {
+        return node;
+    }
+    if node.length == 0 {
         return node;
     }
     let mut slots: Vec<Option<Box<Node>>> = vec![None; 30];
@@ -608,13 +656,12 @@ pub fn rebalance(node: Box<Node>) -> Box<Node> {
     result.unwrap()
 }
 
-
 pub fn sub_rope(node: &Node, starting: usize, ending: usize) -> Node {
     match node.str_content {
         Some(ref content) => {
-            let content = content.substr(starting..ending+1);
+            let content = content.substr(starting..ending + 1);
             let length = (ending - starting) + 1;
-            
+
             Node {
                 weight: length,
                 length,
@@ -634,13 +681,13 @@ pub fn sub_rope(node: &Node, starting: usize, ending: usize) -> Node {
                 let left = sub_rope(left, starting, node.weight - 1);
                 let right = node.right.as_ref().unwrap();
                 let right = sub_rope(right, 0, ending - node.weight);
-                
+
                 Node {
                     length: left.length + right.length,
                     weight: left.length,
                     depth: 1 + max(left.depth, right.depth),
-                    left:Some(Box::new(left)),
-                    right:Some(Box::new(right)),
+                    left: Some(Box::new(left)),
+                    right: Some(Box::new(right)),
                     ..Node::default()
                 }
             }
@@ -648,44 +695,51 @@ pub fn sub_rope(node: &Node, starting: usize, ending: usize) -> Node {
     }
 }
 
-pub fn find_sub_rope(node: &Node, starting: usize, ending: usize)->Option<Node>{
-    if starting>=node.length{
+pub fn find_sub_rope(node: &Node, starting: usize, ending: usize) -> Option<Node> {
+    if starting >= node.length {
         return None;
     }
-    let ending=min(node.length-1,ending);
+    let ending = min(node.length - 1, ending);
     Some(sub_rope(node, starting, ending))
-    
 }
 
-pub fn find_sub_str(node: &Node, starting: usize, ending: usize,collected_string:&mut String)->Option<()>{
-    if starting>=node.length{
+pub fn find_sub_str(
+    node: &Node,
+    starting: usize,
+    ending: usize,
+    collected_string: &mut String,
+) -> Option<()> {
+    if starting >= node.length {
         return None;
     }
-    let ending=min(node.length-1,ending);
-    sub_str(node, starting, ending,collected_string);
+    let ending = min(node.length - 1, ending);
+    sub_str(node, starting, ending, collected_string);
     Some(())
-    
 }
 
-
-pub fn sub_str(node: &Node, starting: usize, ending: usize,collected_string:&mut String)  {
+pub fn sub_str(node: &Node, starting: usize, ending: usize, collected_string: &mut String) {
     match node.str_content {
         Some(ref content) => {
-            let content = content.get_part_of_string(starting..ending+1);
-            collected_string.push_str(content);  
+            let content = content.get_part_of_string(starting..ending + 1);
+            collected_string.push_str(content);
         }
         None => {
             if ending < node.weight {
                 let left = node.left.as_ref().unwrap();
-                sub_str(left, starting, ending,collected_string);
+                sub_str(left, starting, ending, collected_string);
             } else if starting >= node.weight {
                 let right = node.right.as_ref().unwrap();
-                sub_str(right, starting - node.weight, ending - node.weight,collected_string);
+                sub_str(
+                    right,
+                    starting - node.weight,
+                    ending - node.weight,
+                    collected_string,
+                );
             } else {
                 let left = node.left.as_ref().unwrap();
-                sub_str(left, starting, node.weight - 1,collected_string);
+                sub_str(left, starting, node.weight - 1, collected_string);
                 let right = node.right.as_ref().unwrap();
-                sub_str(right, 0, ending - node.weight,collected_string);
+                sub_str(right, 0, ending - node.weight, collected_string);
             }
         }
     }

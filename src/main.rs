@@ -52,8 +52,37 @@ fn main() -> io::Result<()> {
         },
     };
     let mut contents=String::new();
-    
     file.read_to_string(&mut contents)?;
+    
+    ratatui::run(|terminal| App::new(contents).run(terminal))?;
+    
+    
+    // let content: Vec<&str> = contents.graphemes(true).collect::<Vec<&str>>();
+    
+    // let mut rope=build_rope(&content, 0, content.len()-1).0;
+    
+    // print_tree(rope.as_ref()).unwrap();
+    
+    // for i in (0..79).rev(){
+    //     rope=remove(rope, i, 1); 
+    // }
+    // println!("new tree");
+    // print_tree(rope.as_ref()).unwrap();
+    // let mut collected=String::new();
+    // collect_string(&rope, &mut collected);
+    // println!("collected is {}",collected);
+    // rope=remove(rope, 0, 1);
+    
+    
+    // println!("new tree");
+    // print_tree(rope.as_ref()).unwrap();
+    
+    // collected.clear();
+    
+    // collect_string(&rope, &mut collected);
+    // println!("collected 2 is {}",collected);
+    
+    
     // let mut gap_buffer=GapBuffer::new(contents);
     // println!("the buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
     // gap_buffer.add_item(1);
@@ -74,7 +103,6 @@ fn main() -> io::Result<()> {
     // println!("the fifth new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
     
     
-    ratatui::run(|terminal| App::new(contents).run(terminal))?;
     
     
 

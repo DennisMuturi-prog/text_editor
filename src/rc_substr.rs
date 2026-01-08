@@ -29,6 +29,9 @@ impl RcSubstr {
             boundaries: Rc::clone(&self.boundaries)
         }
     }
+    pub fn change_span(&mut self,starting:usize){
+        self.span=self.span.start+starting..self.span.end;
+    }
     pub fn get_part_of_string(&self,span: Range<usize>)->&str{
         &self.string[self.boundaries[self.span.start+span.start]..self.boundaries[self.span.start+span.end]]
         

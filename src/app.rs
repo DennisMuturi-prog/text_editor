@@ -113,15 +113,20 @@ impl App {
     }
 
     fn move_cursor_right(&mut self) {
-        self.index += 1;
         if self.column_number == self.lines_widths.index(self.row_number).unwrap_or_default() {
-            self.row_number+=1;
-            if self.lines_widths.index(self.row_number).is_none(){
-                self.lines_widths.add_item(self.row_number);
+            if self.lines_widths.index(self.row_number+1).is_some(){
+                self.index += 1;
+                self.row_number+=1;
+                self.column_number=0;  
+            }else{
+                if self.lines_widths.index(self.row_number).unwrap_or_default()==0{
+                    return;
+                }
+                self.jump_to_new_line();   
             }
-            self.column_number=0      
             
         } else {
+            self.index += 1;
             let cursor_moved_right = self.column_number.saturating_add(1);
             self.column_number = cursor_moved_right;
         }
