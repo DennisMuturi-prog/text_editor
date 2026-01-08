@@ -70,7 +70,7 @@ fn main() -> io::Result<()> {
     println!("the fourth new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
     
     
-    gap_buffer.increase(0);
+    gap_buffer.increase(2);
     println!("the fifth new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
     
     
