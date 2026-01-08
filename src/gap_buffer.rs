@@ -7,17 +7,16 @@ pub struct GapBuffer {
 }
 
 impl GapBuffer {
-    
     pub fn new(content: &str) -> Self {
-        let (buffer,starting_of_gap,ending_of_gap) = get_line_widths(content);
+        let (buffer, starting_of_gap, ending_of_gap) = get_line_widths(content);
         Self {
             buffer,
             starting_of_gap,
-            ending_of_gap
+            ending_of_gap,
         }
     }
     pub fn new_2(content: String) -> Self {
-        let (buffer, no_of_lines,_) = get_line_widths(&content);
+        let (buffer, no_of_lines, _) = get_line_widths(&content);
         let current_len = buffer.len();
         Self {
             buffer,
@@ -39,19 +38,19 @@ impl GapBuffer {
             Some(self.buffer[new_index])
         }
     }
-    
+
     pub fn increase(&mut self, index: usize) -> Option<()> {
         if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
             return None;
         }
 
         if index < self.starting_of_gap {
-            self.buffer[index]+=1;
+            self.buffer[index] += 1;
             Some(())
         } else {
             let offset = index - self.starting_of_gap + 1;
             let new_index = self.ending_of_gap + offset;
-            self.buffer[new_index]+=1;
+            self.buffer[new_index] += 1;
             Some(())
         }
     }
@@ -61,25 +60,25 @@ impl GapBuffer {
         }
 
         if index < self.starting_of_gap {
-            self.buffer[index]-=1;
+            self.buffer[index] -= 1;
             Some(())
         } else {
             let offset = index - self.starting_of_gap + 1;
             let new_index = self.ending_of_gap + offset;
-            self.buffer[new_index]-=1;
+            self.buffer[new_index] -= 1;
             Some(())
         }
     }
-    fn resize(&mut self){
-        let previous_len=self.buffer.len();
-        for _ in 0..previous_len{
+    fn resize(&mut self) {
+        let previous_len = self.buffer.len();
+        for _ in 0..previous_len {
             self.buffer.push(0);
         }
-        self.starting_of_gap=previous_len;
-        self.ending_of_gap=self.buffer.len()-1; 
+        self.starting_of_gap = previous_len;
+        self.ending_of_gap = self.buffer.len() - 1;
     }
     pub fn add_item(&mut self, index: usize) {
-        if self.ending_of_gap<self.starting_of_gap{
+        if self.ending_of_gap < self.starting_of_gap {
             self.resize();
         }
         if index == self.starting_of_gap {
@@ -97,17 +96,59 @@ impl GapBuffer {
                 // self.buffer[src_index] = 0;
             }
         } else {
-            for src_index in (index..self.starting_of_gap).rev(){
-                let distance_from_start_of_gap=self.starting_of_gap-src_index;
-                let dest_index = self.ending_of_gap - (distance_from_start_of_gap-1);
+            for src_index in (index..self.starting_of_gap).rev() {
+                let distance_from_start_of_gap = self.starting_of_gap - src_index;
+                let dest_index = self.ending_of_gap - (distance_from_start_of_gap - 1);
                 let item = self.buffer[src_index];
                 self.buffer[dest_index] = item;
                 // self.buffer[src_index] = 0;
             }
         }
-        self.buffer[index] =0;
+        self.buffer[index] = 0;
         self.starting_of_gap = index + 1;
         self.ending_of_gap = self.starting_of_gap + gap_len - 2;
+    }
+
+    pub fn remove_item(&mut self, index: usize) -> Option<()> {
+        if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
+            return None;
+        }
+
+        let index = {
+            if index < self.starting_of_gap {
+                index
+            } else {
+                let offset = index - self.starting_of_gap + 1;
+                self.ending_of_gap + offset
+            }
+        };
+
+        if index == self.starting_of_gap {
+            return Some(());
+        }
+        if index > self.starting_of_gap {
+            for offset in 0..(index - self.ending_of_gap) - 1 {
+                let src_index = self.ending_of_gap + offset + 1;
+                let dest_index = self.starting_of_gap + offset;
+                let item = self.buffer[src_index];
+                self.buffer[dest_index] = item;
+                // self.buffer[src_index] = 0;
+            }
+            self.starting_of_gap += (index - self.ending_of_gap) - 1;
+            self.ending_of_gap = index;
+            Some(())
+        } else {
+            for offset in 0..(self.starting_of_gap - index) - 1 {
+                let src_index = self.starting_of_gap - (offset + 1);
+                let dest_index = self.ending_of_gap - offset;
+                let item = self.buffer[src_index];
+                self.buffer[dest_index] = item;
+                // self.buffer[src_index] = 0;
+            }
+            self.ending_of_gap -= (self.starting_of_gap - index) - 1;
+            self.starting_of_gap = index;
+            Some(())
+        }
     }
 
     pub fn buffer(&self) -> &[usize] {

@@ -61,7 +61,12 @@ impl App {
             self.text.clear();
             collect_string(&new_rope, &mut self.text);
             self.rope = Some(new_rope);
-            self.lines_widths.decrease(self.row_number);
+            if self.column_number==0{
+                self.lines_widths.remove_item(self.row_number);  
+            }else{
+                self.lines_widths.decrease(self.row_number);
+                
+            }
         }
         self.move_cursor_left();
     }
