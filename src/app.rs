@@ -291,14 +291,23 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1] // Return the middle chunk
 }
 
-pub fn get_line_widths(content:&str)->(Vec<usize>,usize){
-    let mut lines_widths:Vec<usize>=vec![0;9];
+pub fn get_line_widths(content:&str)->(Vec<usize>,usize,usize){
+    //TODO add support for grapheme and utf8
+    let mut lines:Vec<_>=content.lines().collect();
+    let lines_counts=lines.len();
+    let mut lines_widths:Vec<usize>=Vec::with_capacity(lines_counts*5);
+    
+    let second_part=lines.split_off(lines_counts/2);
     // max(100,content.len())/5
-    let mut i=0;
-    for (index,line_count) in content.lines().map(|a|a.len()).enumerate(){
-        lines_widths[index]=line_count;  
-        i+=1;
+    for line_count in lines.into_iter().map(|a|a.len()){
+        lines_widths.push(line_count);
     };
-    (lines_widths,i)
+    let gap=(lines_counts*2)-(lines_counts/2);
+    lines_widths.extend(std::iter::repeat_n(0,gap ));
+    
+    for line_count in second_part.into_iter().map(|a|a.len()){
+        lines_widths.push(line_count);
+    };
+    (lines_widths,lines_counts/2,(lines_counts*2)-1)
     
 }

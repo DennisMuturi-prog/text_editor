@@ -7,8 +7,17 @@ pub struct GapBuffer {
 }
 
 impl GapBuffer {
+    
     pub fn new(content: String) -> Self {
-        let (buffer, no_of_lines) = get_line_widths(&content);
+        let (buffer,starting_of_gap,ending_of_gap) = get_line_widths(&content);
+        Self {
+            buffer,
+            starting_of_gap,
+            ending_of_gap
+        }
+    }
+    pub fn new_2(content: String) -> Self {
+        let (buffer, no_of_lines,_) = get_line_widths(&content);
         let current_len = buffer.len();
         Self {
             buffer,
