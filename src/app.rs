@@ -1,4 +1,8 @@
-use std::{cmp::max, fs::{self, File}, io};
+use std::{
+    cmp::max,
+    fs::{self, File},
+    io,
+};
 
 use ptree::write_tree;
 use ratatui::{
@@ -41,7 +45,12 @@ impl App {
         let binding = starting_string.clone();
         let content: Vec<&str> = binding.graphemes(true).collect::<Vec<&str>>();
         let lines_widths = GapBuffer::new(&starting_string);
-        let log_message=format!("gap buffer is {:#?} starting is {} and ending is {}",lines_widths.buffer(),lines_widths.starting_of_gap(),lines_widths.ending_of_gap());
+        let log_message = format!(
+            "gap buffer is {:#?} starting is {} and ending is {}",
+            lines_widths.buffer(),
+            lines_widths.starting_of_gap(),
+            lines_widths.ending_of_gap()
+        );
         fs::write("log.txt", log_message).unwrap();
         Self {
             rope: Some(build_rope(&content, 0, content.len() - 1).0),
@@ -59,32 +68,25 @@ impl App {
     }
     fn delete_char(&mut self) {
         let old_rope = self.rope.take();
-        let mut count_to_offset=0;
+        let mut count_to_offset = 0;
         if let Some(old_one) = old_rope {
             if self.column_number == 0 && self.row_number > 0 {
-                if let Some(length_of_line_removed) = self.lines_widths.remove_item(self.row_number) {
+                if let Some(length_of_line_removed) = self.lines_widths.remove_item(self.row_number)
+                {
                     self.lines_widths
                         .increase_with_count(self.row_number - 1, length_of_line_removed);
-                    count_to_offset=length_of_line_removed;
+                    count_to_offset = length_of_line_removed;
                 };
             } else if self.column_number == 0 && self.row_number == 0 {
-                match self.lines_widths.index(1) {
-                    Some(_) => {
-                        self.lines_widths.remove_item(self.row_number);
-                    }
-                    None => {
-                        self.rope=Some(old_one);
-                        // let log_message=format!("gap buffer is {:#?} starting is {} and ending is {}",self.lines_widths.buffer(),self.lines_widths.starting_of_gap(),self.lines_widths.ending_of_gap());
-                        // fs::write("log2.txt", log_message).unwrap();
-                        // let file_name = "tree.txt";
-                        // let file = File::create(file_name).unwrap();
-                        // if let Some(ref tree) = self.rope {
-                        //     write_tree(tree.as_ref(), file).unwrap()
-                        // }
-                        // Write out the tree to the file
-                        return;
-                    }
-                }
+                self.rope = Some(old_one);
+                let log_message = format!(
+                    "gap buffer is {:#?} starting is {} and ending is {}",
+                    self.lines_widths.buffer(),
+                    self.lines_widths.starting_of_gap(),
+                    self.lines_widths.ending_of_gap()
+                );
+                fs::write("log2.txt", log_message).unwrap();
+                return;
             } else {
                 self.lines_widths.decrease(self.row_number);
             }
@@ -94,9 +96,13 @@ impl App {
             self.rope = Some(new_rope);
         }
         self.move_cursor_left(count_to_offset);
-        let log_message=format!("gap buffer is {:#?} starting is {} and ending is {}",self.lines_widths.buffer(),self.lines_widths.starting_of_gap(),self.lines_widths.ending_of_gap());
+        let log_message = format!(
+            "gap buffer is {:#?} starting is {} and ending is {}",
+            self.lines_widths.buffer(),
+            self.lines_widths.starting_of_gap(),
+            self.lines_widths.ending_of_gap()
+        );
         fs::write("log.txt", log_message).unwrap();
-        
     }
     fn add_char(&mut self, value: char) {
         let old_rope = self.rope.take();
@@ -108,7 +114,12 @@ impl App {
             self.lines_widths.increase(self.row_number);
         }
         self.move_cursor_right();
-        let log_message=format!("gap buffer is {:#?} starting is {} and ending is {}",self.lines_widths.buffer(),self.lines_widths.starting_of_gap(),self.lines_widths.ending_of_gap());
+        let log_message = format!(
+            "gap buffer is {:#?} starting is {} and ending is {}",
+            self.lines_widths.buffer(),
+            self.lines_widths.starting_of_gap(),
+            self.lines_widths.ending_of_gap()
+        );
         fs::write("log.txt", log_message).unwrap();
     }
 
@@ -135,18 +146,24 @@ impl App {
             }
         }
         self.move_cursor_down();
-        let log_message=format!("gap buffer is {:#?} starting is {} and ending is {}",self.lines_widths.buffer(),self.lines_widths.starting_of_gap(),self.lines_widths.ending_of_gap());
+        let log_message = format!(
+            "gap buffer is {:#?} starting is {} and ending is {}",
+            self.lines_widths.buffer(),
+            self.lines_widths.starting_of_gap(),
+            self.lines_widths.ending_of_gap()
+        );
         fs::write("log.txt", log_message).unwrap();
     }
 
-    fn move_cursor_left(&mut self,offset:usize) {
+    fn move_cursor_left(&mut self, offset: usize) {
         self.index = self.index.saturating_sub(1);
         if self.column_number == 0 {
             if self.row_number > 0 {
                 self.column_number = self
                     .lines_widths
                     .index(self.row_number - 1)
-                    .unwrap_or_default().saturating_sub(offset);
+                    .unwrap_or_default()
+                    .saturating_sub(offset);
                 self.row_number -= 1;
             }
         } else {
@@ -368,8 +385,8 @@ pub fn get_line_widths(content: &str) -> (Vec<usize>, usize, usize) {
     let mut lines: Vec<_> = content.lines().collect();
     let lines_counts = lines.len();
     let mut lines_widths: Vec<usize> = Vec::with_capacity(lines_counts * 5);
-    
-    if lines_counts==1{
+
+    if lines_counts == 1 {
         lines_widths.push(lines[0].len());
         let gap = (lines_counts * 2) - (lines_counts / 2);
         lines_widths.extend(std::iter::repeat_n(999, gap));
