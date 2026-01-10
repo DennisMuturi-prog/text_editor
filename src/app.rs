@@ -122,6 +122,29 @@ impl App {
         );
         fs::write("log.txt", log_message).unwrap();
     }
+    fn paste(&mut self, value: String) {
+        let old_rope = self.rope.take();
+        if let Some(old_one) = old_rope {
+            let length_of_paste_content=value.graphemes(true).count();
+            let new_rope = insert(old_one, self.index, value);
+            self.text.clear();
+            collect_string(&new_rope, &mut self.text);
+            self.rope = Some(new_rope);
+            self.move_right_due_to_paste(length_of_paste_content);
+        }
+        let log_message = format!(
+            "gap buffer is {:#?} starting is {} and ending is {}",
+            self.lines_widths.buffer(),
+            self.lines_widths.starting_of_gap(),
+            self.lines_widths.ending_of_gap()
+        );
+        fs::write("log.txt", log_message).unwrap();
+    }
+    fn move_right_due_to_paste(&mut self,length:usize){
+        self.index+=length;
+        self.column_number+=length;
+        self.lines_widths.increase_with_count(self.row_number,length);
+    }
 
     fn jump_to_new_line(&mut self) {
         let old_rope = self.rope.take();
@@ -299,52 +322,61 @@ impl App {
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
-        if let Event::Key(key) = event::read()? {
-            if key.kind == event::KeyEventKind::Release {
-                // Skip events that are not KeyEventKind::Press
-                return Ok(());
-            }
-            match self.mode {
-                Mode::Normal => match key.code {
-                    KeyCode::Char('e') => {
-                        self.mode = Mode::Editing;
-                    }
-                    KeyCode::Char('q') => {
-                        self.mode = Mode::Exiting;
-                    }
+        match event::read()? {
+            Event::Key(key) => {
+                if key.kind == event::KeyEventKind::Release {
+                    // Skip events that are not KeyEventKind::Press
+                    return Ok(());
+                }
+                match self.mode {
+                    Mode::Normal => match key.code {
+                        KeyCode::Char('e') => {
+                            self.mode = Mode::Editing;
+                        }
+                        KeyCode::Char('q') => {
+                            self.mode = Mode::Exiting;
+                        }
+                        _ => {}
+                    },
+                    Mode::Exiting => match key.code {
+                        KeyCode::Char('y') => {
+                            self.exit = true;
+                            return Ok(());
+                        }
+                        KeyCode::Char('n') | KeyCode::Char('q') => {
+                            self.exit = true;
+                            return Ok(());
+                        }
+                        _ => {}
+                    },
+                    Mode::Editing if key.kind == KeyEventKind::Press => match key.code {
+                        KeyCode::Enter => {
+                            self.jump_to_new_line();
+                        }
+                        KeyCode::Backspace => {
+                            self.delete_char();
+                        }
+                        KeyCode::Esc => {
+                            self.mode = Mode::Normal;
+                        }
+                        KeyCode::Tab => {}
+                        KeyCode::Char(value) => {
+                            self.add_char(value);
+                        }
+                        KeyCode::Left => self.move_cursor_left(0),
+                        KeyCode::Right => self.move_cursor_right(),
+                        _ => {}
+                    },
                     _ => {}
-                },
-                Mode::Exiting => match key.code {
-                    KeyCode::Char('y') => {
-                        self.exit = true;
-                        return Ok(());
-                    }
-                    KeyCode::Char('n') | KeyCode::Char('q') => {
-                        self.exit = true;
-                        return Ok(());
-                    }
-                    _ => {}
-                },
-                Mode::Editing if key.kind == KeyEventKind::Press => match key.code {
-                    KeyCode::Enter => {
-                        self.jump_to_new_line();
-                    }
-                    KeyCode::Backspace => {
-                        self.delete_char();
-                    }
-                    KeyCode::Esc => {
-                        self.mode = Mode::Normal;
-                    }
-                    KeyCode::Tab => {}
-                    KeyCode::Char(value) => {
-                        self.add_char(value);
-                    }
-                    KeyCode::Left => self.move_cursor_left(0),
-                    KeyCode::Right => self.move_cursor_right(),
-                    _ => {}
-                },
-                _ => {}
-            }
+                }
+            },
+            Event::Paste(pasted_string)=>{
+                if let Mode::Editing=self.mode{
+                    self.paste(pasted_string); 
+                }
+                
+            },
+            _ => (),
         }
         Ok(())
     }
