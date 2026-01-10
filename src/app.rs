@@ -1,5 +1,5 @@
 use std::{
-    cmp::max,
+    cmp::{max, min},
     fs::{self, File},
     io,
 };
@@ -31,6 +31,8 @@ pub struct App {
     rope: Option<Box<Node>>,
     index: usize,
     lines_widths: GapBuffer,
+    cursor_up_and_down_column_position_locked:bool,
+    global_up_and_down_column_position:usize
 }
 #[derive(Default)]
 enum Mode {
@@ -65,6 +67,39 @@ impl App {
             self.handle_events()?;
         }
         Ok(())
+    }
+    fn move_line_down(&mut self){
+        if !self.cursor_up_and_down_column_position_locked{
+            self.global_up_and_down_column_position=self.column_number;
+            self.cursor_up_and_down_column_position_locked=true;
+        }
+        match self.lines_widths.index(self.row_number+1){
+            Some(next_line_length) => {
+                self.column_number=min(next_line_length, self.global_up_and_down_column_position);
+            },
+            None => {
+                self.column_number=0;
+                
+            },
+        }
+        self.row_number=min(self.row_number+1,self.lines_widths.length());
+        
+    }
+    fn move_line_up(&mut self){
+        if !self.cursor_up_and_down_column_position_locked{
+            self.global_up_and_down_column_position=self.column_number;
+            self.cursor_up_and_down_column_position_locked=true;
+        }
+        match self.lines_widths.index(self.row_number.saturating_sub(1)){
+            Some(next_line_length) => {
+                self.column_number=min(next_line_length, self.global_up_and_down_column_position);
+            },
+            None => {
+                self.column_number=0;
+                
+            },
+        }
+        self.row_number=self.row_number.saturating_sub(1); 
     }
     fn delete_char(&mut self) {
         let old_rope = self.rope.take();
@@ -351,20 +386,37 @@ impl App {
                     },
                     Mode::Editing if key.kind == KeyEventKind::Press => match key.code {
                         KeyCode::Enter => {
+                            self.cursor_up_and_down_column_position_locked=false;
                             self.jump_to_new_line();
                         }
                         KeyCode::Backspace => {
+                            self.cursor_up_and_down_column_position_locked=false;
                             self.delete_char();
                         }
                         KeyCode::Esc => {
+                            self.cursor_up_and_down_column_position_locked=false;
                             self.mode = Mode::Normal;
                         }
                         KeyCode::Tab => {}
                         KeyCode::Char(value) => {
+                            self.cursor_up_and_down_column_position_locked=false;
                             self.add_char(value);
                         }
-                        KeyCode::Left => self.move_cursor_left(0),
-                        KeyCode::Right => self.move_cursor_right(),
+                        KeyCode::Left => {
+                            self.cursor_up_and_down_column_position_locked=false;
+                            self.move_cursor_left(0);
+                        },
+                        KeyCode::Right => {
+                            self.cursor_up_and_down_column_position_locked=false;
+                            self.move_cursor_right()
+                        },
+                        KeyCode::Up=>{
+                            self.move_line_up();
+                            
+                        },
+                        KeyCode::Down=>{
+                            self.move_line_down();   
+                        }
                         _ => {}
                     },
                     _ => {}

@@ -1,5 +1,15 @@
 gap buffer is [
-    72,
+    14,
     999,
     999,
-] starting is 1 and ending is 2
+    999,
+    999,
+    999,
+    999,
+    999,
+    999,
+    999,
+    999,
+    999,
+    999,
+] starting is 1 and ending is 12

@@ -60,6 +60,13 @@ impl GapBuffer {
             Some(())
         }
     }
+    pub fn length(&mut self)->usize{
+        if self.ending_of_gap < self.starting_of_gap {
+            self.resize();
+        }
+        self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1)
+        
+    }
     pub fn increase_with_count(&mut self, index: usize, count: usize) -> Option<()> {
         if self.ending_of_gap < self.starting_of_gap {
             self.resize();
