@@ -2,7 +2,7 @@ use std::{env, fs::{self, File}, io::{self, Read}, path::Path, rc::Rc};
 
 use ptree::{
     Color, PrintConfig, Style, TreeBuilder, print_config::UTF_CHARS_BOLD, print_tree,
-    print_tree_with,
+    print_tree_with, write_tree,
 };
 use text_editor::{
     app::App, gap_buffer::GapBuffer, rc_substr::{RcSubstr, find_grapheme_boundaries}, rope::{
@@ -61,7 +61,51 @@ fn main() -> io::Result<()> {
     
     // let mut rope=build_rope(&content, 0, content.len()-1).0;
     
+    // println!("original tree");
+    
+    // let file_name = "tree.txt";
+    // let file = File::create(file_name).unwrap();
+    
+    // write_tree(rope.as_ref(), file).unwrap();
+    
+    
     // print_tree(rope.as_ref()).unwrap();
+    
+    // rope=insert(rope, 8, "\n".to_string());
+    
+    // let mut collected_string=String::new();
+    // collect_string(&rope, &mut collected_string);
+    // println!("collected string");
+    // println!("{}",collected_string);
+    // println!("first tree");
+    
+    // print_tree(rope.as_ref()).unwrap();
+    
+    // for i in (0..9).rev(){
+    //     rope=remove(rope, i, 1);   
+    // }
+    // collected_string.clear();
+    // collect_string(&rope, &mut collected_string);
+    
+    // println!("collected string 2");
+    // println!("{}",collected_string);
+    // println!("third tree");
+    
+    // print_tree(rope.as_ref()).unwrap();
+    
+    
+    // rope=insert(rope, 7, "\n".to_string());
+    
+    // collected_string.clear();
+    // collect_string(&rope, &mut collected_string);
+    
+    // println!("collected string 3");
+    // println!("{}",collected_string);
+    // println!("third tree");
+    // print_tree(rope.as_ref()).unwrap();
+    
+    
+    
     
     // for i in (0..79).rev(){
     //     rope=remove(rope, i, 1); 

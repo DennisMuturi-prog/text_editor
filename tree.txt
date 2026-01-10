@@ -1,0 +1,63 @@
+internal weight:40 depth:5 l:80
+├─ internal weight:20 depth:4 l:40
+│  ├─ internal weight:10 depth:3 l:20
+│  │  ├─ internal weight:5 depth:2 l:10
+│  │  │  ├─ internal weight:3 depth:1 l:5
+│  │  │  │  ├─ leaf :'Lor' weight:3 depth:0 length:3
+│  │  │  │  └─ leaf :'em' weight:2 depth:0 length:2
+│  │  │  └─ internal weight:3 depth:1 l:5
+│  │  │     ├─ leaf :' ip' weight:3 depth:0 length:3
+│  │  │     └─ leaf :'su' weight:2 depth:0 length:2
+│  │  └─ internal weight:5 depth:2 l:10
+│  │     ├─ internal weight:3 depth:1 l:5
+│  │     │  ├─ leaf :'m d' weight:3 depth:0 length:3
+│  │     │  └─ leaf :'ol' weight:2 depth:0 length:2
+│  │     └─ internal weight:3 depth:1 l:5
+│  │        ├─ leaf :'or ' weight:3 depth:0 length:3
+│  │        └─ leaf :'si' weight:2 depth:0 length:2
+│  └─ internal weight:10 depth:3 l:20
+│     ├─ internal weight:5 depth:2 l:10
+│     │  ├─ internal weight:3 depth:1 l:5
+│     │  │  ├─ leaf :'t a' weight:3 depth:0 length:3
+│     │  │  └─ leaf :'me' weight:2 depth:0 length:2
+│     │  └─ internal weight:3 depth:1 l:5
+│     │     ├─ leaf :'t, ' weight:3 depth:0 length:3
+│     │     └─ leaf :'co' weight:2 depth:0 length:2
+│     └─ internal weight:5 depth:2 l:10
+│        ├─ internal weight:3 depth:1 l:5
+│        │  ├─ leaf :'nse' weight:3 depth:0 length:3
+│        │  └─ leaf :'ct' weight:2 depth:0 length:2
+│        └─ internal weight:3 depth:1 l:5
+│           ├─ leaf :'etu' weight:3 depth:0 length:3
+│           └─ leaf :'r ' weight:2 depth:0 length:2
+└─ internal weight:20 depth:4 l:40
+   ├─ internal weight:10 depth:3 l:20
+   │  ├─ internal weight:5 depth:2 l:10
+   │  │  ├─ internal weight:3 depth:1 l:5
+   │  │  │  ├─ leaf :'adi' weight:3 depth:0 length:3
+   │  │  │  └─ leaf :'pi' weight:2 depth:0 length:2
+   │  │  └─ internal weight:3 depth:1 l:5
+   │  │     ├─ leaf :'sci' weight:3 depth:0 length:3
+   │  │     └─ leaf :'ng' weight:2 depth:0 length:2
+   │  └─ internal weight:5 depth:2 l:10
+   │     ├─ internal weight:3 depth:1 l:5
+   │     │  ├─ leaf :' el' weight:3 depth:0 length:3
+   │     │  └─ leaf :'it' weight:2 depth:0 length:2
+   │     └─ internal weight:3 depth:1 l:5
+   │        ├─ leaf :'. N' weight:3 depth:0 length:3
+   │        └─ leaf :'am' weight:2 depth:0 length:2
+   └─ internal weight:10 depth:3 l:20
+      ├─ internal weight:5 depth:2 l:10
+      │  ├─ internal weight:3 depth:1 l:5
+      │  │  ├─ leaf :' id' weight:3 depth:0 length:3
+      │  │  └─ leaf :' i' weight:2 depth:0 length:2
+      │  └─ internal weight:3 depth:1 l:5
+      │     ├─ leaf :'acu' weight:3 depth:0 length:3
+      │     └─ leaf :'li' weight:2 depth:0 length:2
+      └─ internal weight:5 depth:2 l:10
+         ├─ internal weight:3 depth:1 l:5
+         │  ├─ leaf :'s o' weight:3 depth:0 length:3
+         │  └─ leaf :'rc' weight:2 depth:0 length:2
+         └─ internal weight:3 depth:1 l:5
+            ├─ leaf :'i. ' weight:3 depth:0 length:3
+            └─ leaf :'  ' weight:2 depth:0 length:2

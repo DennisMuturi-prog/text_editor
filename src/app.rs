@@ -1,5 +1,6 @@
-use std::{cmp::max, fs, io};
+use std::{cmp::max, fs::{self, File}, io};
 
+use ptree::write_tree;
 use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
@@ -72,7 +73,15 @@ impl App {
                         self.lines_widths.remove_item(self.row_number);
                     }
                     None => {
-                        println!("this caused it");
+                        self.rope=Some(old_one);
+                        // let log_message=format!("gap buffer is {:#?} starting is {} and ending is {}",self.lines_widths.buffer(),self.lines_widths.starting_of_gap(),self.lines_widths.ending_of_gap());
+                        // fs::write("log2.txt", log_message).unwrap();
+                        // let file_name = "tree.txt";
+                        // let file = File::create(file_name).unwrap();
+                        // if let Some(ref tree) = self.rope {
+                        //     write_tree(tree.as_ref(), file).unwrap()
+                        // }
+                        // Write out the tree to the file
                         return;
                     }
                 }
