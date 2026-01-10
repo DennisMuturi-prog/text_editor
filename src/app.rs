@@ -1,4 +1,4 @@
-use std::{cmp::max, io};
+use std::{cmp::max, fs, io};
 
 use ratatui::{
     DefaultTerminal, Frame,
@@ -40,6 +40,8 @@ impl App {
         let binding = starting_string.clone();
         let content: Vec<&str> = binding.graphemes(true).collect::<Vec<&str>>();
         let lines_widths = GapBuffer::new(&starting_string);
+        let log_message=format!("gap buffer is {:#?} starting is {} and ending is {}",lines_widths.buffer(),lines_widths.starting_of_gap(),lines_widths.ending_of_gap());
+        fs::write("log.txt", log_message).unwrap();
         Self {
             rope: Some(build_rope(&content, 0, content.len() - 1).0),
             text: starting_string,
@@ -83,6 +85,9 @@ impl App {
             self.rope = Some(new_rope);
         }
         self.move_cursor_left(count_to_offset);
+        let log_message=format!("gap buffer is {:#?} starting is {} and ending is {}",self.lines_widths.buffer(),self.lines_widths.starting_of_gap(),self.lines_widths.ending_of_gap());
+        fs::write("log.txt", log_message).unwrap();
+        
     }
     fn add_char(&mut self, value: char) {
         let old_rope = self.rope.take();
@@ -94,6 +99,8 @@ impl App {
             self.lines_widths.increase(self.row_number);
         }
         self.move_cursor_right();
+        let log_message=format!("gap buffer is {:#?} starting is {} and ending is {}",self.lines_widths.buffer(),self.lines_widths.starting_of_gap(),self.lines_widths.ending_of_gap());
+        fs::write("log.txt", log_message).unwrap();
     }
 
     fn jump_to_new_line(&mut self) {
@@ -119,6 +126,8 @@ impl App {
             }
         }
         self.move_cursor_down();
+        let log_message=format!("gap buffer is {:#?} starting is {} and ending is {}",self.lines_widths.buffer(),self.lines_widths.starting_of_gap(),self.lines_widths.ending_of_gap());
+        fs::write("log.txt", log_message).unwrap();
     }
 
     fn move_cursor_left(&mut self,offset:usize) {
@@ -350,6 +359,13 @@ pub fn get_line_widths(content: &str) -> (Vec<usize>, usize, usize) {
     let mut lines: Vec<_> = content.lines().collect();
     let lines_counts = lines.len();
     let mut lines_widths: Vec<usize> = Vec::with_capacity(lines_counts * 5);
+    
+    if lines_counts==1{
+        lines_widths.push(lines[0].len());
+        let gap = (lines_counts * 2) - (lines_counts / 2);
+        lines_widths.extend(std::iter::repeat_n(999, gap));
+        return (lines_widths, 1, 2);
+    }
 
     let second_part = lines.split_off(lines_counts / 2);
     // max(100,content.len())/5
@@ -357,7 +373,7 @@ pub fn get_line_widths(content: &str) -> (Vec<usize>, usize, usize) {
         lines_widths.push(line_count);
     }
     let gap = (lines_counts * 2) - (lines_counts / 2);
-    lines_widths.extend(std::iter::repeat_n(0, gap));
+    lines_widths.extend(std::iter::repeat_n(999, gap));
 
     for line_count in second_part.into_iter().map(|a| a.len()) {
         lines_widths.push(line_count);

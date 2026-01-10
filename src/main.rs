@@ -25,8 +25,8 @@ fn main() -> io::Result<()> {
             },
             None =>{
                 println!("provide the file path or file name");
-                return Ok(());
-                
+                "example.txt".to_string()
+
             },
         }
         
@@ -98,6 +98,10 @@ fn main() -> io::Result<()> {
     // println!("the second new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
     // gap_buffer.add_item(1);
     // println!("the third new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    // gap_buffer.add_item(2);
+    // println!("the third new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    
+    
     // let item =gap_buffer.index(9);
     // println!("item is {:?}",item);
     
