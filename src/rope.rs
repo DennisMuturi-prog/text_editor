@@ -412,7 +412,7 @@ pub fn concatenate(left: Box<Node>, right: Box<Node>) -> Box<Node> {
     rebalance(Box::new(new_concat))
 }
 
-pub fn insert(rope: Box<Node>, index: usize, content: String) -> Box<Node> {
+pub fn insert(rope: Box<Node>, index: usize, content: &str) -> Box<Node> {
     if rope.length == 0 {
         let content = content.graphemes(true).collect::<Vec<&str>>();
         return build_rope(&content, 0, content.len() - 1).0;
@@ -448,12 +448,14 @@ pub fn insert(rope: Box<Node>, index: usize, content: String) -> Box<Node> {
     concatenate(original_rope, new_merged_cut_nodes)
 }
 
-pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> Box<Node> {
+pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> (Box<Node>,String) {
+    let mut content_that_was_cut=String::new();
     if rope.length == length_to_cut {
-        return Box::new(Node::default());
+        collect_string(&rope, &mut content_that_was_cut);
+        return (Box::new(Node::default()),content_that_was_cut);
     }
     if rope.length == 0 {
-        return rope;
+        return (rope,content_that_was_cut);
     }
 
     let mut original_rope = rope;
@@ -464,13 +466,14 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> Box<Node> 
 
         // Check bounds
         if index >= full_content.len() {
-            return original_rope; // Nothing to remove
+            return (original_rope,String::new()); // Nothing to remove
         }
 
         let end_index = std::cmp::min(index + length_to_cut, full_content.len());
 
         // Split into three parts
         let left_content = &full_content[0..index];
+        content_that_was_cut=full_content[index..end_index].iter().copied().collect::<String>();
         let right_content = &full_content[end_index..];
 
         // Combine left and right
@@ -482,7 +485,7 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> Box<Node> 
 
         // Create new leaf node
         let new_node = Node::new(new_str, left_content.len() + right_content.len());
-        return Box::new(new_node);
+        return (Box::new(new_node),content_that_was_cut);
     }
     let mut cut_nodes = Vec::new();
 
@@ -490,7 +493,7 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> Box<Node> 
     let original_rope = rebalance(original_rope);
 
     if cut_nodes.is_empty() {
-        return original_rope;
+        return (original_rope,content_that_was_cut);
     }
 
     let mut new_merged_cut_nodes = {
@@ -500,7 +503,7 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> Box<Node> 
             match first {
                 Some(first_cut) => first_cut,
                 None => {
-                    return original_rope;
+                    return (original_rope,content_that_was_cut);
                 }
             }
         };
@@ -513,9 +516,10 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> Box<Node> 
 
     let mut cut_nodes = Vec::new();
     let _ = split(&mut new_merged_cut_nodes, length_to_cut, &mut cut_nodes);
+    collect_string(&new_merged_cut_nodes, &mut content_that_was_cut);
 
     if cut_nodes.is_empty() {
-        return original_rope;
+        return (original_rope,content_that_was_cut);
     }
 
     let mut third_new_merged_cut_nodes = {
@@ -525,7 +529,7 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> Box<Node> 
             match first {
                 Some(first_cut) => first_cut,
                 None => {
-                    return original_rope;
+                    return (original_rope,content_that_was_cut);
                 }
             }
         };
@@ -536,10 +540,10 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> Box<Node> 
     };
     third_new_merged_cut_nodes = rebalance(third_new_merged_cut_nodes);
     if original_rope.length == 0 {
-        return third_new_merged_cut_nodes;
+        return (third_new_merged_cut_nodes,content_that_was_cut);
     }
 
-    concatenate(original_rope, third_new_merged_cut_nodes)
+    (concatenate(original_rope, third_new_merged_cut_nodes),content_that_was_cut)
 }
 pub fn collect_leaves(node: Box<Node>, leaves: &mut Vec<Box<Node>>) {
     if node.str_content.is_some() {

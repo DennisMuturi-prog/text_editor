@@ -18,8 +18,7 @@ use ratatui::{
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    gap_buffer::GapBuffer,
-    rope::{Node, build_rope, collect_string, insert, remove},
+    command::Command, gap_buffer::GapBuffer, rope::{Node, build_rope, collect_string, insert, remove}
 };
 #[derive(Default)]
 pub struct App {
@@ -32,7 +31,8 @@ pub struct App {
     index: usize,
     lines_widths: GapBuffer,
     cursor_up_and_down_column_position_locked:bool,
-    global_up_and_down_column_position:usize
+    global_up_and_down_column_position:usize,
+    executed_commands:Vec<Box<dyn Command>>
 }
 #[derive(Default)]
 enum Mode {
@@ -59,6 +59,24 @@ impl App {
             text: starting_string,
             lines_widths,
             ..App::default()
+        }
+    }
+    fn execute<C:Command+'static>(&mut self,command:C){
+        let old_rope = self.rope.take();
+        if let Some(rope)=old_rope{
+            self.rope=Some(command.execute(rope));
+        }
+        self.executed_commands.push(Box::new(command));
+    }
+    fn undo(&mut self){
+        let old_rope = self.rope.take();
+        match self.executed_commands.pop(){
+            Some(last_executed_command) => {
+                if let Some(rope)=old_rope{
+                    self.rope=Some(last_executed_command.undo(rope));
+                }
+            },
+            None => todo!(),
         }
     }
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
