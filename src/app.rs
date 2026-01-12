@@ -18,7 +18,7 @@ use ratatui::{
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    command::{Command, DeleteCommand, InsertCommand},
+    command::{Command, DecreaseLineCommand, DeleteCommand, IncreaseLineCommand, InsertCommand, JumpToNewLineWithContentCommand, JumpToNewLineWithoutContentCommand, LineMergeTopCommand, LineWidthsCommand, PasteCommand},
     gap_buffer::GapBuffer,
     rope::{Node, build_rope, collect_string, insert, remove},
 };
@@ -35,6 +35,7 @@ pub struct App {
     cursor_up_and_down_column_position_locked: bool,
     global_up_and_down_column_position: usize,
     executed_commands: Vec<Box<dyn Command>>,
+    line_commands: Vec<Box<dyn LineWidthsCommand>>
 }
 #[derive(Default)]
 enum Mode {
@@ -73,6 +74,11 @@ impl App {
         }
         self.executed_commands.push(Box::new(command));
         final_index
+    }
+    fn execute_line_command<C:LineWidthsCommand+'static>(&mut self,command:C){
+        command.execute(&mut self.lines_widths);
+        self.line_commands.push(Box::new(command));
+        
     }
     fn undo(&mut self) {
         let old_rope = self.rope.take();
@@ -134,11 +140,8 @@ impl App {
     fn delete_char(&mut self) {
         let mut count_to_offset = 0;
         if self.column_number == 0 && self.row_number > 0 {
-            if let Some(length_of_line_removed) = self.lines_widths.remove_item(self.row_number) {
-                self.lines_widths
-                    .increase_with_count(self.row_number - 1, length_of_line_removed);
-                count_to_offset = length_of_line_removed;
-            };
+            count_to_offset = self.lines_widths.index(self.row_number).unwrap_or_default();
+            self.execute_line_command(LineMergeTopCommand::new(self.row_number, count_to_offset));
         } else if self.column_number == 0 && self.row_number == 0 {
             let log_message = format!(
                 "gap buffer is {:#?} starting is {} and ending is {}",
@@ -149,7 +152,7 @@ impl App {
             fs::write("log2.txt", log_message).unwrap();
             return;
         } else {
-            self.lines_widths.decrease(self.row_number);
+            self.execute_line_command(DecreaseLineCommand::new(self.row_number));
         }
         let final_index = self.execute(DeleteCommand::new(1, self.index.saturating_sub(1)));
         self.refresh_string();
@@ -166,7 +169,7 @@ impl App {
     fn add_char(&mut self, value: char) {
         let final_index = self.execute(InsertCommand::new(value.to_string(), self.index));
         self.refresh_string();
-        self.lines_widths.increase(self.row_number);
+        self.execute_line_command(IncreaseLineCommand::new(self.row_number));
         self.move_cursor_right(final_index);
         let log_message = format!(
             "gap buffer is {:#?} starting is {} and ending is {}",
@@ -192,8 +195,7 @@ impl App {
     fn move_right_due_to_paste(&mut self, length: usize, final_index: usize) {
         self.index = final_index;
         self.column_number += length;
-        self.lines_widths
-            .increase_with_count(self.row_number, length);
+        self.execute_line_command(PasteCommand::new(self.row_number,length));
     }
 
     fn jump_to_new_line(&mut self) {
@@ -201,16 +203,11 @@ impl App {
         self.refresh_string();
         let current_line_length = self.lines_widths.index(self.row_number).unwrap_or_default();
         if self.column_number < current_line_length {
-            self.lines_widths.add_item_with_count(
-                self.row_number + 1,
-                current_line_length - self.column_number,
-            );
-            self.lines_widths
-                .decrease_with_count(self.row_number, current_line_length - self.column_number);
+            self.execute_line_command(JumpToNewLineWithContentCommand::new(current_line_length, self.row_number, self.column_number));
             self.index = final_index;
         } else {
             self.index = final_index;
-            self.lines_widths.add_item(self.row_number + 1);
+            self.execute_line_command(JumpToNewLineWithoutContentCommand::new(self.row_number));
         }
         self.move_cursor_down();
         let log_message = format!(
