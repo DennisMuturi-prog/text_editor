@@ -111,6 +111,8 @@ impl App {
             }
         }
         self.row_number = min(self.row_number + 1, self.lines_widths.length());
+        let length_upto_non_inclusive_current_row=self.lines_widths.length_up_to_non_inclusive_index(self.row_number);
+        self.index=length_upto_non_inclusive_current_row+self.column_number+self.row_number;
     }
     fn move_line_up(&mut self) {
         if !self.cursor_up_and_down_column_position_locked {
@@ -126,6 +128,8 @@ impl App {
             }
         }
         self.row_number = self.row_number.saturating_sub(1);
+        let length_upto_non_inclusive_current_row=self.lines_widths.length_up_to_non_inclusive_index(self.row_number);
+        self.index=length_upto_non_inclusive_current_row+self.column_number+self.row_number;
     }
     fn delete_char(&mut self) {
         let mut count_to_offset = 0;

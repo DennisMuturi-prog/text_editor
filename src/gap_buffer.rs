@@ -60,6 +60,27 @@ impl GapBuffer {
             Some(())
         }
     }
+    pub fn length_up_to_non_inclusive_index(&mut self, index: usize) -> usize {
+        let mut index=index;
+        if self.ending_of_gap < self.starting_of_gap {
+            self.resize();
+        }
+        let content_len=self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1);
+        if index >= content_len{
+            index=content_len;
+        }
+
+        if index < self.starting_of_gap {
+            self.buffer[0..index].iter().sum::<usize>()
+        } else {
+            let offset = index - self.starting_of_gap + 1;
+            let new_index = self.ending_of_gap + offset;
+            
+            let sum_before_gap=self.buffer[0..self.starting_of_gap()].iter().sum::<usize>();
+            let sum_after_gap=self.buffer[self.ending_of_gap+1..new_index].iter().sum::<usize>();
+            sum_before_gap+sum_after_gap
+        }
+    }
     pub fn length(&mut self)->usize{
         if self.ending_of_gap < self.starting_of_gap {
             self.resize();

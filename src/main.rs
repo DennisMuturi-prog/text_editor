@@ -128,14 +128,18 @@ fn main() -> io::Result<()> {
     
     
     // let mut gap_buffer=GapBuffer::new(&contents);
-    // println!("the buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
-    // let at=gap_buffer.index(2);
-    // println!("item at is {:?}",at);
-    // let removed=gap_buffer.remove_item(7);
-    // println!("removed is {:?}",removed);
-    // println!("the second buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
+    // let sum=gap_buffer.length_up_to_non_inclusive_index(5);
+    // println!("the buffer is {:?} ,start is {} and end is {} and sum is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap(),sum);
+    // // let at=gap_buffer.index(2);
+    // // println!("item at is {:?}",at);
+    // // let removed=gap_buffer.remove_item(7);
+    // // println!("removed is {:?}",removed);
+    // // println!("the second buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
     
     // gap_buffer.add_item(1);
+    
+    // let sum=gap_buffer.length_up_to_non_inclusive_index(2);
+    // println!("the buffer is {:?} ,start is {} and end is {} and sum is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap(),sum);
     
     // println!("the new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
     // gap_buffer.add_item(5);
