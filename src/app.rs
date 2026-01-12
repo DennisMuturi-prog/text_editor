@@ -18,7 +18,11 @@ use ratatui::{
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    command::{Command, DecreaseLineCommand, DeleteCommand, IncreaseLineCommand, InsertCommand, JumpToNewLineWithContentCommand, JumpToNewLineWithoutContentCommand, LineMergeTopCommand, LineWidthsCommand, PasteCommand},
+    command::{
+        Command, DecreaseLineCommand, DeleteCommand, IncreaseLineCommand, InsertCommand,
+        JumpToNewLineWithContentCommand, JumpToNewLineWithoutContentCommand, LineMergeTopCommand,
+        LineWidthsCommand, PasteCommand,
+    },
     gap_buffer::GapBuffer,
     rope::{Node, build_rope, collect_string, insert, remove},
 };
@@ -35,7 +39,7 @@ pub struct App {
     cursor_up_and_down_column_position_locked: bool,
     global_up_and_down_column_position: usize,
     executed_commands: Vec<Box<dyn Command>>,
-    line_commands: Vec<Box<dyn LineWidthsCommand>>
+    line_commands: Vec<Box<dyn LineWidthsCommand>>,
 }
 #[derive(Default)]
 enum Mode {
@@ -75,17 +79,51 @@ impl App {
         self.executed_commands.push(Box::new(command));
         final_index
     }
-    fn execute_line_command<C:LineWidthsCommand+'static>(&mut self,command:C){
+    fn execute_line_command<C: LineWidthsCommand + 'static>(&mut self, command: C) {
         command.execute(&mut self.lines_widths);
         self.line_commands.push(Box::new(command));
-        
     }
     fn undo(&mut self) {
         let old_rope = self.rope.take();
         if let Some(last_executed_command) = self.executed_commands.pop() {
+            if let Some(last_line_command) = self.line_commands.pop() {
+                last_line_command.undo(&mut self.lines_widths);
+            }
             if let Some(rope) = old_rope {
                 let (new_rope, new_index) = last_executed_command.undo(rope, self.index);
                 self.rope = Some(new_rope);
+                self.refresh_string();
+                if self.index == new_index {
+                    return;
+                } else if new_index < self.index {
+                    let difference = self.index - new_index;
+                    if self.column_number < difference {
+                        let inner_difference = difference - self.column_number;
+                        let previous_line_width = self
+                            .lines_widths
+                            .index(self.row_number.saturating_sub(1))
+                            .unwrap_or_default();
+                        if previous_line_width == 0 {
+                            self.column_number = 0;
+                            self.row_number = 0;
+                            return;
+                        }
+                        self.column_number = previous_line_width - inner_difference;
+                        self.row_number = self.row_number.saturating_sub(1);
+                    } else {
+                        self.column_number -=difference;
+                    }
+                } else {
+                    let difference = new_index - self.index;
+                    let potential_column_number = self.column_number + difference;
+                    let current_line_width =
+                        self.lines_widths.index(self.row_number).unwrap_or_default();
+                    if potential_column_number <= current_line_width {
+                        self.column_number = potential_column_number;
+                    } else {
+                        self.column_number = potential_column_number - current_line_width;
+                    }
+                }
                 self.index = new_index;
             }
         }
@@ -117,8 +155,10 @@ impl App {
             }
         }
         self.row_number = min(self.row_number + 1, self.lines_widths.length());
-        let length_upto_non_inclusive_current_row=self.lines_widths.length_up_to_non_inclusive_index(self.row_number);
-        self.index=length_upto_non_inclusive_current_row+self.column_number+self.row_number;
+        let length_upto_non_inclusive_current_row = self
+            .lines_widths
+            .length_up_to_non_inclusive_index(self.row_number);
+        self.index = length_upto_non_inclusive_current_row + self.column_number + self.row_number;
     }
     fn move_line_up(&mut self) {
         if !self.cursor_up_and_down_column_position_locked {
@@ -134,8 +174,10 @@ impl App {
             }
         }
         self.row_number = self.row_number.saturating_sub(1);
-        let length_upto_non_inclusive_current_row=self.lines_widths.length_up_to_non_inclusive_index(self.row_number);
-        self.index=length_upto_non_inclusive_current_row+self.column_number+self.row_number;
+        let length_upto_non_inclusive_current_row = self
+            .lines_widths
+            .length_up_to_non_inclusive_index(self.row_number);
+        self.index = length_upto_non_inclusive_current_row + self.column_number + self.row_number;
     }
     fn delete_char(&mut self) {
         let mut count_to_offset = 0;
@@ -195,7 +237,7 @@ impl App {
     fn move_right_due_to_paste(&mut self, length: usize, final_index: usize) {
         self.index = final_index;
         self.column_number += length;
-        self.execute_line_command(PasteCommand::new(self.row_number,length));
+        self.execute_line_command(PasteCommand::new(self.row_number, length));
     }
 
     fn jump_to_new_line(&mut self) {
@@ -203,7 +245,11 @@ impl App {
         self.refresh_string();
         let current_line_length = self.lines_widths.index(self.row_number).unwrap_or_default();
         if self.column_number < current_line_length {
-            self.execute_line_command(JumpToNewLineWithContentCommand::new(current_line_length, self.row_number, self.column_number));
+            self.execute_line_command(JumpToNewLineWithContentCommand::new(
+                current_line_length,
+                self.row_number,
+                self.column_number,
+            ));
             self.index = final_index;
         } else {
             self.index = final_index;
@@ -407,11 +453,10 @@ impl App {
                         KeyCode::Char('z') => {
                             if key.modifiers == KeyModifiers::CONTROL {
                                 self.undo();
-                            }else{
+                            } else {
                                 self.cursor_up_and_down_column_position_locked = false;
-                                self.add_char('z');  
+                                self.add_char('z');
                             }
-                            
                         }
                         KeyCode::Char(value) => {
                             self.cursor_up_and_down_column_position_locked = false;
