@@ -412,18 +412,15 @@ pub fn concatenate(left: Box<Node>, right: Box<Node>) -> Box<Node> {
     rebalance(Box::new(new_concat))
 }
 
-pub fn insert(rope: Box<Node>, index: usize, content: &str) -> Box<Node> {
+pub fn insert(rope: Box<Node>, index: usize, content: Vec<&str>) -> Box<Node> {
     if rope.length == 0 {
-        let content = content.graphemes(true).collect::<Vec<&str>>();
         return build_rope(&content, 0, content.len() - 1).0;
     }
     if index == 0 {
-        let content = content.graphemes(true).collect::<Vec<&str>>();
         let new_node = build_rope(&content, 0, content.len() - 1).0;
         let new_rope = concatenate(new_node, rope);
         return new_rope;
     } else if index == rope.length {
-        let content = content.graphemes(true).collect::<Vec<&str>>();
         let new_node = build_rope(&content, 0, content.len() - 1).0;
         let new_rope = concatenate(rope, new_node);
         return new_rope;
@@ -436,7 +433,6 @@ pub fn insert(rope: Box<Node>, index: usize, content: &str) -> Box<Node> {
     let original_rope = rebalance(original_rope);
 
     let new_merged_cut_nodes = {
-        let content = content.graphemes(true).collect::<Vec<&str>>();
         let (mut merged, _) = build_rope(&content, 0, content.len() - 1);
         for cut_node in cut_nodes {
             merged = concatenate(merged, cut_node);

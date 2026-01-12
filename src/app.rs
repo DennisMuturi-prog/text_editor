@@ -8,7 +8,7 @@ use ptree::write_tree;
 use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
-    crossterm::event::{self, Event, KeyCode, KeyEventKind},
+    crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     layout::{Constraint, Direction, Layout, Position},
     prelude::Rect,
     style::{Color, Style},
@@ -18,7 +18,9 @@ use ratatui::{
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    command::Command, gap_buffer::GapBuffer, rope::{Node, build_rope, collect_string, insert, remove}
+    command::{Command, DeleteCommand, InsertCommand},
+    gap_buffer::GapBuffer,
+    rope::{Node, build_rope, collect_string, insert, remove},
 };
 #[derive(Default)]
 pub struct App {
@@ -30,9 +32,9 @@ pub struct App {
     rope: Option<Box<Node>>,
     index: usize,
     lines_widths: GapBuffer,
-    cursor_up_and_down_column_position_locked:bool,
-    global_up_and_down_column_position:usize,
-    executed_commands:Vec<Box<dyn Command>>
+    cursor_up_and_down_column_position_locked: bool,
+    global_up_and_down_column_position: usize,
+    executed_commands: Vec<Box<dyn Command>>,
 }
 #[derive(Default)]
 enum Mode {
@@ -61,22 +63,31 @@ impl App {
             ..App::default()
         }
     }
-    fn execute<C:Command+'static>(&mut self,command:C){
+    fn execute<C: Command + 'static>(&mut self, command: C) -> usize {
         let old_rope = self.rope.take();
-        if let Some(rope)=old_rope{
-            self.rope=Some(command.execute(rope));
+        let mut final_index = self.index;
+        if let Some(rope) = old_rope {
+            let (new_rope, new_index) = command.execute(rope);
+            self.rope = Some(new_rope);
+            final_index = new_index;
         }
         self.executed_commands.push(Box::new(command));
+        final_index
     }
-    fn undo(&mut self){
+    fn undo(&mut self) {
         let old_rope = self.rope.take();
-        match self.executed_commands.pop(){
-            Some(last_executed_command) => {
-                if let Some(rope)=old_rope{
-                    self.rope=Some(last_executed_command.undo(rope));
-                }
-            },
-            None => todo!(),
+        if let Some(last_executed_command) = self.executed_commands.pop() {
+            if let Some(rope) = old_rope {
+                let (new_rope, new_index) = last_executed_command.undo(rope, self.index);
+                self.rope = Some(new_rope);
+                self.index = new_index;
+            }
+        }
+    }
+    fn refresh_string(&mut self) {
+        if let Some(ref rope) = self.rope {
+            self.text.clear();
+            collect_string(rope, &mut self.text);
         }
     }
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
@@ -86,87 +97,73 @@ impl App {
         }
         Ok(())
     }
-    fn move_line_down(&mut self){
-        if !self.cursor_up_and_down_column_position_locked{
-            self.global_up_and_down_column_position=self.column_number;
-            self.cursor_up_and_down_column_position_locked=true;
+    fn move_line_down(&mut self) {
+        if !self.cursor_up_and_down_column_position_locked {
+            self.global_up_and_down_column_position = self.column_number;
+            self.cursor_up_and_down_column_position_locked = true;
         }
-        match self.lines_widths.index(self.row_number+1){
+        match self.lines_widths.index(self.row_number + 1) {
             Some(next_line_length) => {
-                self.column_number=min(next_line_length, self.global_up_and_down_column_position);
-            },
+                self.column_number = min(next_line_length, self.global_up_and_down_column_position);
+            }
             None => {
-                self.column_number=0;
-                
-            },
+                self.column_number = 0;
+            }
         }
-        self.row_number=min(self.row_number+1,self.lines_widths.length());
-        
+        self.row_number = min(self.row_number + 1, self.lines_widths.length());
     }
-    fn move_line_up(&mut self){
-        if !self.cursor_up_and_down_column_position_locked{
-            self.global_up_and_down_column_position=self.column_number;
-            self.cursor_up_and_down_column_position_locked=true;
+    fn move_line_up(&mut self) {
+        if !self.cursor_up_and_down_column_position_locked {
+            self.global_up_and_down_column_position = self.column_number;
+            self.cursor_up_and_down_column_position_locked = true;
         }
-        match self.lines_widths.index(self.row_number.saturating_sub(1)){
+        match self.lines_widths.index(self.row_number.saturating_sub(1)) {
             Some(next_line_length) => {
-                self.column_number=min(next_line_length, self.global_up_and_down_column_position);
-            },
+                self.column_number = min(next_line_length, self.global_up_and_down_column_position);
+            }
             None => {
-                self.column_number=0;
-                
-            },
+                self.column_number = 0;
+            }
         }
-        self.row_number=self.row_number.saturating_sub(1); 
+        self.row_number = self.row_number.saturating_sub(1);
     }
     fn delete_char(&mut self) {
-        let old_rope = self.rope.take();
         let mut count_to_offset = 0;
-        if let Some(old_one) = old_rope {
-            if self.column_number == 0 && self.row_number > 0 {
-                if let Some(length_of_line_removed) = self.lines_widths.remove_item(self.row_number)
-                {
-                    self.lines_widths
-                        .increase_with_count(self.row_number - 1, length_of_line_removed);
-                    count_to_offset = length_of_line_removed;
-                };
-            } else if self.column_number == 0 && self.row_number == 0 {
-                self.rope = Some(old_one);
-                let log_message = format!(
-                    "gap buffer is {:#?} starting is {} and ending is {}",
-                    self.lines_widths.buffer(),
-                    self.lines_widths.starting_of_gap(),
-                    self.lines_widths.ending_of_gap()
-                );
-                fs::write("log2.txt", log_message).unwrap();
-                return;
-            } else {
-                self.lines_widths.decrease(self.row_number);
-            }
-            let new_rope = remove(old_one, self.index.saturating_sub(1), 1);
-            self.text.clear();
-            collect_string(&new_rope, &mut self.text);
-            self.rope = Some(new_rope);
+        if self.column_number == 0 && self.row_number > 0 {
+            if let Some(length_of_line_removed) = self.lines_widths.remove_item(self.row_number) {
+                self.lines_widths
+                    .increase_with_count(self.row_number - 1, length_of_line_removed);
+                count_to_offset = length_of_line_removed;
+            };
+        } else if self.column_number == 0 && self.row_number == 0 {
+            let log_message = format!(
+                "gap buffer is {:#?} starting is {} and ending is {}",
+                self.lines_widths.buffer(),
+                self.lines_widths.starting_of_gap(),
+                self.lines_widths.ending_of_gap()
+            );
+            fs::write("log2.txt", log_message).unwrap();
+            return;
+        } else {
+            self.lines_widths.decrease(self.row_number);
         }
-        self.move_cursor_left(count_to_offset);
+        let final_index = self.execute(DeleteCommand::new(1, self.index.saturating_sub(1)));
+        self.refresh_string();
+        self.move_cursor_left(count_to_offset, final_index);
         let log_message = format!(
-            "gap buffer is {:#?} starting is {} and ending is {}",
+            "gap buffer is {:#?} starting is {} and ending is {} and new index is {}",
             self.lines_widths.buffer(),
             self.lines_widths.starting_of_gap(),
-            self.lines_widths.ending_of_gap()
+            self.lines_widths.ending_of_gap(),
+            final_index
         );
         fs::write("log.txt", log_message).unwrap();
     }
     fn add_char(&mut self, value: char) {
-        let old_rope = self.rope.take();
-        if let Some(old_one) = old_rope {
-            let new_rope = insert(old_one, self.index, value.to_string());
-            self.text.clear();
-            collect_string(&new_rope, &mut self.text);
-            self.rope = Some(new_rope);
-            self.lines_widths.increase(self.row_number);
-        }
-        self.move_cursor_right();
+        let final_index = self.execute(InsertCommand::new(value.to_string(), self.index));
+        self.refresh_string();
+        self.lines_widths.increase(self.row_number);
+        self.move_cursor_right(final_index);
         let log_message = format!(
             "gap buffer is {:#?} starting is {} and ending is {}",
             self.lines_widths.buffer(),
@@ -176,15 +173,10 @@ impl App {
         fs::write("log.txt", log_message).unwrap();
     }
     fn paste(&mut self, value: String) {
-        let old_rope = self.rope.take();
-        if let Some(old_one) = old_rope {
-            let length_of_paste_content=value.graphemes(true).count();
-            let new_rope = insert(old_one, self.index, value);
-            self.text.clear();
-            collect_string(&new_rope, &mut self.text);
-            self.rope = Some(new_rope);
-            self.move_right_due_to_paste(length_of_paste_content);
-        }
+        let length_of_paste_content = value.graphemes(true).count();
+        let final_index = self.execute(InsertCommand::new(value, self.index));
+        self.refresh_string();
+        self.move_right_due_to_paste(length_of_paste_content, final_index);
         let log_message = format!(
             "gap buffer is {:#?} starting is {} and ending is {}",
             self.lines_widths.buffer(),
@@ -193,33 +185,28 @@ impl App {
         );
         fs::write("log.txt", log_message).unwrap();
     }
-    fn move_right_due_to_paste(&mut self,length:usize){
-        self.index+=length;
-        self.column_number+=length;
-        self.lines_widths.increase_with_count(self.row_number,length);
+    fn move_right_due_to_paste(&mut self, length: usize, final_index: usize) {
+        self.index = final_index;
+        self.column_number += length;
+        self.lines_widths
+            .increase_with_count(self.row_number, length);
     }
 
     fn jump_to_new_line(&mut self) {
-        let old_rope = self.rope.take();
-        if let Some(old_one) = old_rope {
-            let new_rope = insert(old_one, self.index, "\n".to_string());
-            self.text.clear();
-            collect_string(&new_rope, &mut self.text);
-            self.rope = Some(new_rope);
-            let current_line_length = self.lines_widths.index(self.row_number).unwrap_or_default();
-
-            if self.column_number < current_line_length {
-                self.lines_widths.add_item_with_count(
-                    self.row_number + 1,
-                    current_line_length - self.column_number,
-                );
-                self.lines_widths
-                    .decrease_with_count(self.row_number, current_line_length - self.column_number);
-                self.index += 1;
-            } else {
-                self.index += 1;
-                self.lines_widths.add_item(self.row_number + 1);
-            }
+        let final_index = self.execute(InsertCommand::new("\n".to_string(), self.index));
+        self.refresh_string();
+        let current_line_length = self.lines_widths.index(self.row_number).unwrap_or_default();
+        if self.column_number < current_line_length {
+            self.lines_widths.add_item_with_count(
+                self.row_number + 1,
+                current_line_length - self.column_number,
+            );
+            self.lines_widths
+                .decrease_with_count(self.row_number, current_line_length - self.column_number);
+            self.index = final_index;
+        } else {
+            self.index = final_index;
+            self.lines_widths.add_item(self.row_number + 1);
         }
         self.move_cursor_down();
         let log_message = format!(
@@ -231,8 +218,8 @@ impl App {
         fs::write("log.txt", log_message).unwrap();
     }
 
-    fn move_cursor_left(&mut self, offset: usize) {
-        self.index = self.index.saturating_sub(1);
+    fn move_cursor_left(&mut self, offset: usize, final_index: usize) {
+        self.index = final_index;
         if self.column_number == 0 {
             if self.row_number > 0 {
                 self.column_number = self
@@ -253,10 +240,10 @@ impl App {
         self.row_number = cursor_moved_down;
     }
 
-    fn move_cursor_right(&mut self) {
+    fn move_cursor_right(&mut self, final_index: usize) {
         if self.column_number == self.lines_widths.index(self.row_number).unwrap_or_default() {
             if self.lines_widths.index(self.row_number + 1).is_some() {
-                self.index += 1;
+                self.index = final_index;
                 self.row_number += 1;
                 self.column_number = 0;
             } else {
@@ -267,7 +254,7 @@ impl App {
                 self.jump_to_new_line();
             }
         } else {
-            self.index += 1;
+            self.index = final_index;
             let cursor_moved_right = self.column_number.saturating_add(1);
             self.column_number = cursor_moved_right;
         }
@@ -404,48 +391,55 @@ impl App {
                     },
                     Mode::Editing if key.kind == KeyEventKind::Press => match key.code {
                         KeyCode::Enter => {
-                            self.cursor_up_and_down_column_position_locked=false;
+                            self.cursor_up_and_down_column_position_locked = false;
                             self.jump_to_new_line();
                         }
                         KeyCode::Backspace => {
-                            self.cursor_up_and_down_column_position_locked=false;
+                            self.cursor_up_and_down_column_position_locked = false;
                             self.delete_char();
                         }
                         KeyCode::Esc => {
-                            self.cursor_up_and_down_column_position_locked=false;
+                            self.cursor_up_and_down_column_position_locked = false;
                             self.mode = Mode::Normal;
                         }
                         KeyCode::Tab => {}
+                        KeyCode::Char('z') => {
+                            if key.modifiers == KeyModifiers::CONTROL {
+                                self.undo();
+                            }else{
+                                self.cursor_up_and_down_column_position_locked = false;
+                                self.add_char('z');  
+                            }
+                            
+                        }
                         KeyCode::Char(value) => {
-                            self.cursor_up_and_down_column_position_locked=false;
+                            self.cursor_up_and_down_column_position_locked = false;
                             self.add_char(value);
                         }
                         KeyCode::Left => {
-                            self.cursor_up_and_down_column_position_locked=false;
-                            self.move_cursor_left(0);
-                        },
+                            self.cursor_up_and_down_column_position_locked = false;
+                            self.move_cursor_left(0, self.index.saturating_sub(1));
+                        }
                         KeyCode::Right => {
-                            self.cursor_up_and_down_column_position_locked=false;
-                            self.move_cursor_right()
-                        },
-                        KeyCode::Up=>{
+                            self.cursor_up_and_down_column_position_locked = false;
+                            self.move_cursor_right(self.index + 1)
+                        }
+                        KeyCode::Up => {
                             self.move_line_up();
-                            
-                        },
-                        KeyCode::Down=>{
-                            self.move_line_down();   
+                        }
+                        KeyCode::Down => {
+                            self.move_line_down();
                         }
                         _ => {}
                     },
                     _ => {}
                 }
-            },
-            Event::Paste(pasted_string)=>{
-                if let Mode::Editing=self.mode{
-                    self.paste(pasted_string); 
+            }
+            Event::Paste(pasted_string) => {
+                if let Mode::Editing = self.mode {
+                    self.paste(pasted_string);
                 }
-                
-            },
+            }
             _ => (),
         }
         Ok(())
