@@ -1,4 +1,4 @@
-use crate::app::get_line_widths;
+use crate::{app::get_line_widths, rope};
 #[derive(Default)]
 pub struct GapBuffer {
     buffer: Vec<usize>,
@@ -41,6 +41,33 @@ impl GapBuffer {
             Some(self.buffer[new_index])
         }
     }
+    pub fn find_where_rope_index_fits(&mut self, rope_index: usize) -> (usize, usize) {
+        if self.ending_of_gap < self.starting_of_gap {
+            self.resize();
+        }
+        let mut rope_index = rope_index as i32;
+        for i in 0..self.starting_of_gap {
+            rope_index -= (self.buffer[i]) as i32;
+            if rope_index <= 0 {
+                return (i, (self.buffer[i] - rope_index.unsigned_abs() as usize));
+            }
+            rope_index-=1;
+        }
+        let before_index = self.starting_of_gap;
+        for i in self.ending_of_gap + 1..self.buffer.len() {
+            let after_index = i - self.ending_of_gap;
+            let final_index = before_index + after_index - 1;
+            rope_index -= (self.buffer[i]) as i32;
+            if rope_index <= 0 {
+                return (
+                    final_index,
+                    (self.buffer[i] - rope_index.unsigned_abs() as usize),
+                );
+            }
+            rope_index-=1;
+        }
+        (0, 0)
+    }
 
     pub fn increase(&mut self, index: usize) -> Option<()> {
         if self.ending_of_gap < self.starting_of_gap {
@@ -61,13 +88,13 @@ impl GapBuffer {
         }
     }
     pub fn length_up_to_non_inclusive_index(&mut self, index: usize) -> usize {
-        let mut index=index;
+        let mut index = index;
         if self.ending_of_gap < self.starting_of_gap {
             self.resize();
         }
-        let content_len=self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1);
-        if index >= content_len{
-            index=content_len;
+        let content_len = self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1);
+        if index >= content_len {
+            index = content_len;
         }
 
         if index < self.starting_of_gap {
@@ -75,18 +102,19 @@ impl GapBuffer {
         } else {
             let offset = index - self.starting_of_gap + 1;
             let new_index = self.ending_of_gap + offset;
-            
-            let sum_before_gap=self.buffer[0..self.starting_of_gap()].iter().sum::<usize>();
-            let sum_after_gap=self.buffer[self.ending_of_gap+1..new_index].iter().sum::<usize>();
-            sum_before_gap+sum_after_gap
+
+            let sum_before_gap = self.buffer[0..self.starting_of_gap()].iter().sum::<usize>();
+            let sum_after_gap = self.buffer[self.ending_of_gap + 1..new_index]
+                .iter()
+                .sum::<usize>();
+            sum_before_gap + sum_after_gap
         }
     }
-    pub fn length(&mut self)->usize{
+    pub fn length(&mut self) -> usize {
         if self.ending_of_gap < self.starting_of_gap {
             self.resize();
         }
         self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1)
-        
     }
     pub fn increase_with_count(&mut self, index: usize, count: usize) -> Option<()> {
         if self.ending_of_gap < self.starting_of_gap {

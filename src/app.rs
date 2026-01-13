@@ -88,6 +88,13 @@ impl App {
         if let Some(last_executed_command) = self.executed_commands.pop() {
             if let Some(last_line_command) = self.line_commands.pop() {
                 last_line_command.undo(&mut self.lines_widths);
+                let log_message = format!(
+                    "gap buffer is {:#?} starting is {} and ending is {}",
+                    self.lines_widths.buffer(),
+                    self.lines_widths.starting_of_gap(),
+                    self.lines_widths.ending_of_gap()
+                );
+                fs::write("log.txt", log_message).unwrap();
             }
             if let Some(rope) = old_rope {
                 let (new_rope, new_index) = last_executed_command.undo(rope, self.index);
@@ -95,36 +102,11 @@ impl App {
                 self.refresh_string();
                 if self.index == new_index {
                     return;
-                } else if new_index < self.index {
-                    let difference = self.index - new_index;
-                    if self.column_number < difference {
-                        let inner_difference = difference - self.column_number;
-                        let previous_line_width = self
-                            .lines_widths
-                            .index(self.row_number.saturating_sub(1))
-                            .unwrap_or_default();
-                        if previous_line_width == 0 {
-                            self.column_number = 0;
-                            self.row_number = 0;
-                            return;
-                        }
-                        self.column_number = previous_line_width - inner_difference;
-                        self.row_number = self.row_number.saturating_sub(1);
-                    } else {
-                        self.column_number -=difference;
-                    }
-                } else {
-                    let difference = new_index - self.index;
-                    let potential_column_number = self.column_number + difference;
-                    let current_line_width =
-                        self.lines_widths.index(self.row_number).unwrap_or_default();
-                    if potential_column_number <= current_line_width {
-                        self.column_number = potential_column_number;
-                    } else {
-                        self.column_number = potential_column_number - current_line_width;
-                    }
                 }
+                let (row,column)=self.lines_widths.find_where_rope_index_fits(new_index);
                 self.index = new_index;
+                self.row_number=row;
+                self.column_number=column;
             }
         }
     }
