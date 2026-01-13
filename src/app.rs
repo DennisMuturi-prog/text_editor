@@ -84,8 +84,8 @@ impl App {
         self.line_commands.push(Box::new(command));
     }
     fn undo(&mut self) {
-        let old_rope = self.rope.take();
         if let Some(last_executed_command) = self.executed_commands.pop() {
+            let old_rope = self.rope.take();
             if let Some(last_line_command) = self.line_commands.pop() {
                 last_line_command.undo(&mut self.lines_widths);
                 let log_message = format!(
@@ -104,10 +104,24 @@ impl App {
                     return;
                 }
                 let (row,column)=self.lines_widths.find_where_rope_index_fits(new_index);
+                if row==0 && column==0{
+                    self.column_number=0;
+                    self.column_number=0;
+                    self.index=0;
+                    return;
+                }
                 self.index = new_index;
                 self.row_number=row;
                 self.column_number=column;
             }
+        }else{
+            let log_message = format!(
+                "no commands avaialblegap buffer is {:#?} starting is {} and ending is {}",
+                self.lines_widths.buffer(),
+                self.lines_widths.starting_of_gap(),
+                self.lines_widths.ending_of_gap()
+            );
+            fs::write("log.txt", log_message).unwrap();
         }
     }
     fn refresh_string(&mut self) {

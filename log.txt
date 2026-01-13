@@ -1,8 +1,6 @@
 gap buffer is [
     3,
     3,
-    5,
-    15,
     999,
     999,
     999,
@@ -12,4 +10,6 @@ gap buffer is [
     999,
     999,
     5,
-] starting is 4 and ending is 11
+    6,
+    5,
+] starting is 2 and ending is 9
