@@ -97,7 +97,7 @@ impl App {
                 fs::write("log.txt", log_message).unwrap();
             }
             if let Some(rope) = old_rope {
-                let (new_rope, new_index) = last_executed_command.undo(rope, self.index);
+                let (new_rope, new_index) = last_executed_command.undo(rope);
                 self.rope = Some(new_rope);
                 self.refresh_string();
                 if self.index == new_index {
