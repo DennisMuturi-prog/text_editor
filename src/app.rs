@@ -38,8 +38,10 @@ pub struct App {
     lines_widths: GapBuffer,
     cursor_up_and_down_column_position_locked: bool,
     global_up_and_down_column_position: usize,
-    executed_commands: Vec<Box<dyn Command>>,
-    line_commands: Vec<Box<dyn LineWidthsCommand>>,
+    undo_commands: Vec<Box<dyn Command>>,
+    undo_line_commands: Vec<Box<dyn LineWidthsCommand>>,
+    redo_commands:Vec<Box<dyn Command>>,
+    redo_line_commands:Vec<Box<dyn LineWidthsCommand>>
 }
 #[derive(Default)]
 enum Mode {
@@ -76,18 +78,63 @@ impl App {
             self.rope = Some(new_rope);
             final_index = new_index;
         }
-        self.executed_commands.push(Box::new(command));
+        self.undo_commands.push(Box::new(command));
         final_index
     }
     fn execute_line_command<C: LineWidthsCommand + 'static>(&mut self, command: C) {
         command.execute(&mut self.lines_widths);
-        self.line_commands.push(Box::new(command));
+        self.undo_line_commands.push(Box::new(command));
+    }
+    fn redo(&mut self){
+        if let Some(last_executed_command) = self.redo_commands.pop() {
+            let old_rope = self.rope.take();
+            if let Some(last_line_command) = self.redo_line_commands.pop() {
+                last_line_command.execute(&mut self.lines_widths);
+                self.undo_line_commands.push(last_line_command);
+                let log_message = format!(
+                    "gap buffer is {:#?} starting is {} and ending is {}",
+                    self.lines_widths.buffer(),
+                    self.lines_widths.starting_of_gap(),
+                    self.lines_widths.ending_of_gap()
+                );
+                fs::write("log.txt", log_message).unwrap();
+            }
+            if let Some(rope) = old_rope {
+                let (new_rope, new_index) = last_executed_command.execute(rope);
+                self.rope = Some(new_rope);
+                self.refresh_string();
+                if self.index == new_index {
+                    return;
+                }
+                let (row,column)=self.lines_widths.find_where_rope_index_fits(new_index);
+                if row==0 && column==0{
+                    self.column_number=0;
+                    self.column_number=0;
+                    self.index=0;
+                    return;
+                }
+                self.index = new_index;
+                self.row_number=row;
+                self.column_number=column;
+                self.undo_commands.push(last_executed_command);
+            }
+        }else{
+            let log_message = format!(
+                "redo is empty avaialblegap buffer is {:#?} starting is {} and ending is {}",
+                self.lines_widths.buffer(),
+                self.lines_widths.starting_of_gap(),
+                self.lines_widths.ending_of_gap()
+            );
+            fs::write("log.txt", log_message).unwrap();
+        }
+        
     }
     fn undo(&mut self) {
-        if let Some(last_executed_command) = self.executed_commands.pop() {
+        if let Some(last_executed_command) = self.undo_commands.pop() {
             let old_rope = self.rope.take();
-            if let Some(last_line_command) = self.line_commands.pop() {
+            if let Some(last_line_command) = self.undo_line_commands.pop() {
                 last_line_command.undo(&mut self.lines_widths);
+                self.redo_line_commands.push(last_line_command);
                 let log_message = format!(
                     "gap buffer is {:#?} starting is {} and ending is {}",
                     self.lines_widths.buffer(),
@@ -98,6 +145,7 @@ impl App {
             }
             if let Some(rope) = old_rope {
                 let (new_rope, new_index) = last_executed_command.undo(rope);
+                self.redo_commands.push(last_executed_command);
                 self.rope = Some(new_rope);
                 self.refresh_string();
                 if self.index == new_index {
@@ -453,7 +501,15 @@ impl App {
                                 self.cursor_up_and_down_column_position_locked = false;
                                 self.add_char('z');
                             }
-                        }
+                        },
+                        KeyCode::Char('y') => {
+                            if key.modifiers == KeyModifiers::CONTROL {
+                                self.redo();
+                            } else {
+                                self.cursor_up_and_down_column_position_locked = false;
+                                self.add_char('y');
+                            }
+                        },
                         KeyCode::Char(value) => {
                             self.cursor_up_and_down_column_position_locked = false;
                             self.add_char(value);
