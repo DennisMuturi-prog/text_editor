@@ -5,10 +5,87 @@ use std::{
     ops::Deref,
 };
 
-use ptree::{Style, TreeBuilder, TreeItem, item::StringItem, print_tree};
+use ptree::{Style, TreeBuilder, TreeItem, item::StringItem};
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::rc_substr::RcSubstr;
+use crate::{command::{Command, DeleteCommand, InsertCommand}, rc_substr::RcSubstr, text_representation::TextRepresentation};
+#[derive(Default)]
+pub struct Rope{
+    rope:Option<Box<Node>>,
+    undo_commands:Vec<Box<dyn Command>>,
+    redo_commands:Vec<Box<dyn Command>>
+}
+impl Rope{
+    pub fn new(content:String)->Self {
+        let content: Vec<&str> = content.graphemes(true).collect::<Vec<&str>>();
+        Self { rope: Some(build_rope(&content, 0, content.len() - 1).0), ..Default::default() }
+        
+    }
+    fn execute<C: Command + 'static>(&mut self, command: C) -> usize {
+        let old_rope = self.rope.take();
+        if let Some(rope) = old_rope {
+            let (new_rope, new_index) = command.execute(rope);
+            self.rope = Some(new_rope);
+            return new_index;
+        }
+        self.undo_commands.push(Box::new(command));
+        0
+    }
+}
+impl TextRepresentation for Rope{
+    
+
+    fn insert(&mut self,content:String,index:usize)->usize {
+        self.execute(InsertCommand::new(content, index))
+    }
+
+    fn delete(&mut self,length_to_cut:usize,index:usize)->usize {
+        self.execute(DeleteCommand::new(length_to_cut, index))
+    }
+
+    fn undo(&mut self)->Option<usize> {
+        if let Some(last_executed_command) = self.undo_commands.pop() {
+            let old_rope = self.rope.take();
+            if let Some(rope) = old_rope {
+                let (new_rope, new_index) = last_executed_command.undo(rope);
+                self.redo_commands.push(last_executed_command);
+                self.rope = Some(new_rope);
+                Some(new_index)
+                
+            }else{
+                None
+            }
+        }else{
+            None
+            
+        }
+    }
+
+    fn redo(&mut self)->Option<usize> {
+        if let Some(last_executed_command) = self.redo_commands.pop() {
+            let old_rope = self.rope.take();
+            if let Some(rope) = old_rope {
+                let (new_rope, new_index) = last_executed_command.execute(rope);
+                self.undo_commands.push(last_executed_command);
+                self.rope = Some(new_rope);
+                Some(new_index)
+                
+            }else{
+                None
+            }
+        }else{
+            None
+            
+        }
+    }
+
+    fn collect_string(&self,text:&mut String) {
+        if let Some(ref rope) = self.rope {
+            text.clear();
+            collect_string(rope, text);
+        }
+    }
+}
 
 #[derive(Debug, Default, Clone)]
 pub struct Node {

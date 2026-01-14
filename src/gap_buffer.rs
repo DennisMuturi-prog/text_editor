@@ -1,4 +1,4 @@
-use crate::{app::get_line_widths, rope};
+use crate::{app::get_line_widths};
 #[derive(Default)]
 pub struct GapBuffer {
     buffer: Vec<usize>,

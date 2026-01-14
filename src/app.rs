@@ -1,46 +1,41 @@
 use std::{
-    cmp::{max, min},
-    fs::{self, File},
+    cmp::min,
+    fs::{self},
     io,
 };
 
-use ptree::write_tree;
 use ratatui::{
     DefaultTerminal, Frame,
-    buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     layout::{Constraint, Direction, Layout, Position},
     prelude::Rect,
     style::{Color, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Paragraph, Widget, Wrap},
+    widgets::{Block, Borders, Paragraph, Wrap},
 };
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     command::{
-        Command, DecreaseLineCommand, DeleteCommand, IncreaseLineCommand, InsertCommand,
-        JumpToNewLineWithContentCommand, JumpToNewLineWithoutContentCommand, LineMergeTopCommand,
+        DecreaseLineCommand, IncreaseLineCommand, JumpToNewLineWithContentCommand, JumpToNewLineWithoutContentCommand, LineMergeTopCommand,
         LineWidthsCommand, PasteCommand,
     },
     gap_buffer::GapBuffer,
-    rope::{Node, build_rope, collect_string, insert, remove},
+    text_representation::TextRepresentation,
 };
 #[derive(Default)]
-pub struct App {
+pub struct App<T:TextRepresentation> {
     text: String,
     exit: bool,
     mode: Mode,
     row_number: usize,
     column_number: usize,
-    rope: Option<Box<Node>>,
+    text_representation:T,
     index: usize,
     lines_widths: GapBuffer,
     cursor_up_and_down_column_position_locked: bool,
     global_up_and_down_column_position: usize,
-    undo_commands: Vec<Box<dyn Command>>,
     undo_line_commands: Vec<Box<dyn LineWidthsCommand>>,
-    redo_commands:Vec<Box<dyn Command>>,
     redo_line_commands:Vec<Box<dyn LineWidthsCommand>>
 }
 #[derive(Default)]
@@ -51,10 +46,8 @@ enum Mode {
     Exiting,
 }
 
-impl App {
-    pub fn new(starting_string: String) -> Self {
-        let binding = starting_string.clone();
-        let content: Vec<&str> = binding.graphemes(true).collect::<Vec<&str>>();
+impl<T:TextRepresentation> App<T> {
+    pub fn new(starting_string: String,text_representation:T) -> Self {
         let lines_widths = GapBuffer::new(&starting_string);
         let log_message = format!(
             "gap buffer is {:#?} starting is {} and ending is {}",
@@ -64,63 +57,36 @@ impl App {
         );
         fs::write("log.txt", log_message).unwrap();
         Self {
-            rope: Some(build_rope(&content, 0, content.len() - 1).0),
+            text_representation,
             text: starting_string,
             lines_widths,
             ..App::default()
         }
-    }
-    fn execute<C: Command + 'static>(&mut self, command: C) -> usize {
-        let old_rope = self.rope.take();
-        let mut final_index = self.index;
-        if let Some(rope) = old_rope {
-            let (new_rope, new_index) = command.execute(rope);
-            self.rope = Some(new_rope);
-            final_index = new_index;
-        }
-        self.undo_commands.push(Box::new(command));
-        final_index
     }
     fn execute_line_command<C: LineWidthsCommand + 'static>(&mut self, command: C) {
         command.execute(&mut self.lines_widths);
         self.undo_line_commands.push(Box::new(command));
     }
     fn redo(&mut self){
-        if let Some(last_executed_command) = self.redo_commands.pop() {
-            let old_rope = self.rope.take();
-            if let Some(last_line_command) = self.redo_line_commands.pop() {
-                last_line_command.execute(&mut self.lines_widths);
-                self.undo_line_commands.push(last_line_command);
-                let log_message = format!(
-                    "gap buffer is {:#?} starting is {} and ending is {}",
-                    self.lines_widths.buffer(),
-                    self.lines_widths.starting_of_gap(),
-                    self.lines_widths.ending_of_gap()
-                );
-                fs::write("log.txt", log_message).unwrap();
+        if let Some(new_index) = self.text_representation.redo() {
+            self.refresh_string();
+            let (row,column)=self.lines_widths.find_where_rope_index_fits(new_index);
+            if row==0 && column==0{
+                self.column_number=0;
+                self.column_number=0;
+                self.index=0;
+                return;
             }
-            if let Some(rope) = old_rope {
-                let (new_rope, new_index) = last_executed_command.execute(rope);
-                self.rope = Some(new_rope);
-                self.refresh_string();
-                if self.index == new_index {
-                    return;
-                }
-                let (row,column)=self.lines_widths.find_where_rope_index_fits(new_index);
-                if row==0 && column==0{
-                    self.column_number=0;
-                    self.column_number=0;
-                    self.index=0;
-                    return;
-                }
-                self.index = new_index;
-                self.row_number=row;
-                self.column_number=column;
-                self.undo_commands.push(last_executed_command);
-            }
-        }else{
+            self.index = new_index;
+            self.row_number=row;
+            self.column_number=column;
+    
+        }
+        if let Some(last_line_command) = self.redo_line_commands.pop() {
+            last_line_command.execute(&mut self.lines_widths);
+            self.undo_line_commands.push(last_line_command);
             let log_message = format!(
-                "redo is empty avaialblegap buffer is {:#?} starting is {} and ending is {}",
+                "gap buffer is {:#?} starting is {} and ending is {}",
                 self.lines_widths.buffer(),
                 self.lines_widths.starting_of_gap(),
                 self.lines_widths.ending_of_gap()
@@ -130,53 +96,38 @@ impl App {
         
     }
     fn undo(&mut self) {
-        if let Some(last_executed_command) = self.undo_commands.pop() {
-            let old_rope = self.rope.take();
-            if let Some(last_line_command) = self.undo_line_commands.pop() {
-                last_line_command.undo(&mut self.lines_widths);
-                self.redo_line_commands.push(last_line_command);
-                let log_message = format!(
-                    "gap buffer is {:#?} starting is {} and ending is {}",
-                    self.lines_widths.buffer(),
-                    self.lines_widths.starting_of_gap(),
-                    self.lines_widths.ending_of_gap()
-                );
-                fs::write("log.txt", log_message).unwrap();
+        if let Some(new_index) = self.text_representation.undo() {
+            self.refresh_string();
+    
+            let (row,column)=self.lines_widths.find_where_rope_index_fits(new_index);
+            if row==0 && column==0{
+                self.column_number=0;
+                self.column_number=0;
+                self.index=0;
+                return;
             }
-            if let Some(rope) = old_rope {
-                let (new_rope, new_index) = last_executed_command.undo(rope);
-                self.redo_commands.push(last_executed_command);
-                self.rope = Some(new_rope);
-                self.refresh_string();
-                if self.index == new_index {
-                    return;
-                }
-                let (row,column)=self.lines_widths.find_where_rope_index_fits(new_index);
-                if row==0 && column==0{
-                    self.column_number=0;
-                    self.column_number=0;
-                    self.index=0;
-                    return;
-                }
-                self.index = new_index;
-                self.row_number=row;
-                self.column_number=column;
-            }
-        }else{
+            self.index = new_index;
+            self.row_number=row;
+            self.column_number=column;
+    
+        }
+        
+        
+        if let Some(last_line_command) = self.undo_line_commands.pop() {
+            last_line_command.undo(&mut self.lines_widths);
+            self.redo_line_commands.push(last_line_command);
             let log_message = format!(
-                "no commands avaialblegap buffer is {:#?} starting is {} and ending is {}",
+                "gap buffer is {:#?} starting is {} and ending is {}",
                 self.lines_widths.buffer(),
                 self.lines_widths.starting_of_gap(),
                 self.lines_widths.ending_of_gap()
             );
             fs::write("log.txt", log_message).unwrap();
         }
+        
     }
     fn refresh_string(&mut self) {
-        if let Some(ref rope) = self.rope {
-            self.text.clear();
-            collect_string(rope, &mut self.text);
-        }
+        self.text_representation.collect_string(&mut self.text);
     }
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         while !self.exit {
@@ -240,7 +191,7 @@ impl App {
         } else {
             self.execute_line_command(DecreaseLineCommand::new(self.row_number));
         }
-        let final_index = self.execute(DeleteCommand::new(1, self.index.saturating_sub(1)));
+        let final_index=self.text_representation.delete(1, self.index.saturating_sub(1));
         self.refresh_string();
         self.move_cursor_left(count_to_offset, final_index);
         let log_message = format!(
@@ -253,7 +204,7 @@ impl App {
         fs::write("log.txt", log_message).unwrap();
     }
     fn add_char(&mut self, value: char) {
-        let final_index = self.execute(InsertCommand::new(value.to_string(), self.index));
+        let final_index=self.text_representation.insert(value.to_string(), self.index);
         self.refresh_string();
         self.execute_line_command(IncreaseLineCommand::new(self.row_number));
         self.move_cursor_right(final_index);
@@ -267,7 +218,7 @@ impl App {
     }
     fn paste(&mut self, value: String) {
         let length_of_paste_content = value.graphemes(true).count();
-        let final_index = self.execute(InsertCommand::new(value, self.index));
+        let final_index=self.text_representation.insert(value, self.index);
         self.refresh_string();
         self.move_right_due_to_paste(length_of_paste_content, final_index);
         let log_message = format!(
@@ -285,7 +236,7 @@ impl App {
     }
 
     fn jump_to_new_line(&mut self) {
-        let final_index = self.execute(InsertCommand::new("\n".to_string(), self.index));
+        let final_index=self.text_representation.insert("\n".to_string(), self.index);
         self.refresh_string();
         let current_line_length = self.lines_widths.index(self.row_number).unwrap_or_default();
         if self.column_number < current_line_length {
@@ -548,9 +499,7 @@ impl App {
     }
 }
 
-impl Widget for &App {
-    fn render(self, area: Rect, buf: &mut Buffer) {}
-}
+
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     // Cut the given rectangle into three vertical pieces

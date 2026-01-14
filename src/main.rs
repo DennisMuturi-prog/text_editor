@@ -6,9 +6,8 @@ use ptree::{
 };
 use text_editor::{
     app::App, gap_buffer::GapBuffer, rc_substr::{RcSubstr, find_grapheme_boundaries}, rope::{
-        Node, build_rope, collect_string, concatenate, find_length, find_sub_rope, find_sub_str,
-        index, insert, rebalance, remove, sub_rope,
-    }
+        Node, Rope, build_rope, collect_string, concatenate, find_length, find_sub_rope, find_sub_str, index, insert, rebalance, remove, sub_rope
+    }, text_representation
 };
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -54,7 +53,9 @@ fn main() -> io::Result<()> {
     let mut contents=String::new();
     file.read_to_string(&mut contents)?;
     
-    ratatui::run(|terminal| App::new(contents).run(terminal))?;
+    let text_representation=Rope::new(contents.clone());
+    
+    ratatui::run(|terminal| App::new(contents,text_representation).run(terminal))?;
     
     
     // let content: Vec<&str> = contents.graphemes(true).collect::<Vec<&str>>();
