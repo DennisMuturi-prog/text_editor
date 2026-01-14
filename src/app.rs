@@ -69,6 +69,17 @@ impl<T:TextRepresentation> App<T> {
     }
     fn redo(&mut self){
         if let Some(new_index) = self.text_representation.redo() {
+            if let Some(last_line_command) = self.redo_line_commands.pop() {
+                last_line_command.execute(&mut self.lines_widths);
+                self.undo_line_commands.push(last_line_command);
+                let log_message = format!(
+                    "gap buffer is {:#?} starting is {} and ending is {}",
+                    self.lines_widths.buffer(),
+                    self.lines_widths.starting_of_gap(),
+                    self.lines_widths.ending_of_gap()
+                );
+                fs::write("log.txt", log_message).unwrap();
+            }
             self.refresh_string();
             let (row,column)=self.lines_widths.find_where_rope_index_fits(new_index);
             if row==0 && column==0{
@@ -82,21 +93,22 @@ impl<T:TextRepresentation> App<T> {
             self.column_number=column;
     
         }
-        if let Some(last_line_command) = self.redo_line_commands.pop() {
-            last_line_command.execute(&mut self.lines_widths);
-            self.undo_line_commands.push(last_line_command);
-            let log_message = format!(
-                "gap buffer is {:#?} starting is {} and ending is {}",
-                self.lines_widths.buffer(),
-                self.lines_widths.starting_of_gap(),
-                self.lines_widths.ending_of_gap()
-            );
-            fs::write("log.txt", log_message).unwrap();
-        }
+        
         
     }
     fn undo(&mut self) {
         if let Some(new_index) = self.text_representation.undo() {
+            if let Some(last_line_command) = self.undo_line_commands.pop() {
+                last_line_command.undo(&mut self.lines_widths);
+                self.redo_line_commands.push(last_line_command);
+                let log_message = format!(
+                    "gap buffer is {:#?} starting is {} and ending is {}",
+                    self.lines_widths.buffer(),
+                    self.lines_widths.starting_of_gap(),
+                    self.lines_widths.ending_of_gap()
+                );
+                fs::write("log.txt", log_message).unwrap();
+            }
             self.refresh_string();
     
             let (row,column)=self.lines_widths.find_where_rope_index_fits(new_index);
@@ -113,17 +125,7 @@ impl<T:TextRepresentation> App<T> {
         }
         
         
-        if let Some(last_line_command) = self.undo_line_commands.pop() {
-            last_line_command.undo(&mut self.lines_widths);
-            self.redo_line_commands.push(last_line_command);
-            let log_message = format!(
-                "gap buffer is {:#?} starting is {} and ending is {}",
-                self.lines_widths.buffer(),
-                self.lines_widths.starting_of_gap(),
-                self.lines_widths.ending_of_gap()
-            );
-            fs::write("log.txt", log_message).unwrap();
-        }
+        
         
     }
     fn refresh_string(&mut self) {

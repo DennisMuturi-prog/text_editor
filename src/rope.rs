@@ -23,13 +23,14 @@ impl Rope{
     }
     fn execute<C: Command + 'static>(&mut self, command: C) -> usize {
         let old_rope = self.rope.take();
+        let mut final_index=0;
         if let Some(rope) = old_rope {
             let (new_rope, new_index) = command.execute(rope);
             self.rope = Some(new_rope);
-            return new_index;
+            final_index=new_index;
         }
         self.undo_commands.push(Box::new(command));
-        0
+        final_index
     }
 }
 impl TextRepresentation for Rope{
