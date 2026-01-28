@@ -1,18 +1,12 @@
-use std::{env, fs::{self, File}, io::{self, Read}, path::Path, rc::Rc};
+use std::{env, fs::File, io::{self, Read}};
 
-use ptree::{
-    Color, PrintConfig, Style, TreeBuilder, print_config::UTF_CHARS_BOLD, print_tree,
-    print_tree_with, write_tree,
-};
+use ratatui::crossterm::terminal::size;
 use text_editor::{
-    app::App, gap_buffer::GapBuffer, rc_substr::{RcSubstr, find_grapheme_boundaries}, rope::{
-        Node, Rope, build_rope, collect_string, concatenate, find_length, find_sub_rope, find_sub_str, index, insert, rebalance, remove, sub_rope
-    }, text_representation
+    app::App, rope::
+        Rope
+    
 };
-use unicode_segmentation::UnicodeSegmentation;
-
 fn main() -> io::Result<()> {
-    //
     
 
     let file_path={
@@ -22,7 +16,7 @@ fn main() -> io::Result<()> {
                 println!("arg is {}",arg1);
                 arg1
             },
-            None =>{
+            None =>{                
                 println!("provide the file path or file name");
                 "example.txt".to_string()
 
@@ -52,10 +46,9 @@ fn main() -> io::Result<()> {
     };
     let mut contents=String::new();
     file.read_to_string(&mut contents)?;
-    
     let text_representation=Rope::new(contents.clone());
     
-    ratatui::run(|terminal| App::new(contents,text_representation).run(terminal))?;
+    ratatui::run(|terminal| App::new(contents,text_representation,size().unwrap().0 as usize).run(terminal))?;
     
     
     // let content: Vec<&str> = contents.graphemes(true).collect::<Vec<&str>>();

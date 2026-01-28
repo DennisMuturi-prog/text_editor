@@ -17,26 +17,29 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     command::{
-        DecreaseLineCommand, IncreaseLineCommand, JumpToNewLineWithContentCommand, JumpToNewLineWithoutContentCommand, LineMergeTopCommand,
-        LineWidthsCommand, PasteCommand,
+        DecreaseLineCommand, IncreaseLineCommand, JumpToNewLineWithContentCommand,
+        JumpToNewLineWithoutContentCommand, LineMergeTopCommand, LineWidthsCommand, PasteCommand,
     },
-    gap_buffer::GapBuffer,
+    gap_buffer::{GapBuffer, LinesGapBuffer},
     text_representation::TextRepresentation,
 };
 #[derive(Default)]
-pub struct App<T:TextRepresentation> {
+pub struct App<T: TextRepresentation> {
     text: String,
     exit: bool,
     mode: Mode,
     row_number: usize,
     column_number: usize,
-    text_representation:T,
+    text_representation: T,
     index: usize,
     lines_widths: GapBuffer,
     cursor_up_and_down_column_position_locked: bool,
     global_up_and_down_column_position: usize,
     undo_line_commands: Vec<Box<dyn LineWidthsCommand>>,
-    redo_line_commands:Vec<Box<dyn LineWidthsCommand>>
+    redo_line_commands: Vec<Box<dyn LineWidthsCommand>>,
+    window_height: usize,
+    window_width: usize,
+    lines_text_editor: LinesGapBuffer,
 }
 #[derive(Default)]
 enum Mode {
@@ -46,9 +49,11 @@ enum Mode {
     Exiting,
 }
 
-impl<T:TextRepresentation> App<T> {
-    pub fn new(starting_string: String,text_representation:T) -> Self {
+impl<T: TextRepresentation> App<T> {
+    pub fn new(starting_string: String, text_representation: T, initial_width: usize) -> Self {
         let lines_widths = GapBuffer::new(&starting_string);
+        let lines_text_editor = LinesGapBuffer::new(&starting_string, initial_width, 10);
+
         let log_message = format!(
             "gap buffer is {:#?} starting is {} and ending is {}",
             lines_widths.buffer(),
@@ -60,6 +65,7 @@ impl<T:TextRepresentation> App<T> {
             text_representation,
             text: starting_string,
             lines_widths,
+            lines_text_editor,
             ..App::default()
         }
     }
@@ -67,7 +73,7 @@ impl<T:TextRepresentation> App<T> {
         command.execute(&mut self.lines_widths);
         self.undo_line_commands.push(Box::new(command));
     }
-    fn redo(&mut self){
+    fn redo(&mut self) {
         if let Some(new_index) = self.text_representation.redo() {
             if let Some(last_line_command) = self.redo_line_commands.pop() {
                 last_line_command.execute(&mut self.lines_widths);
@@ -81,20 +87,17 @@ impl<T:TextRepresentation> App<T> {
                 fs::write("log.txt", log_message).unwrap();
             }
             self.refresh_string();
-            let (row,column)=self.lines_widths.find_where_rope_index_fits(new_index);
-            if row==0 && column==0{
-                self.column_number=0;
-                self.column_number=0;
-                self.index=0;
+            let (row, column) = self.lines_widths.find_where_rope_index_fits(new_index);
+            if row == 0 && column == 0 {
+                self.column_number = 0;
+                self.column_number = 0;
+                self.index = 0;
                 return;
             }
             self.index = new_index;
-            self.row_number=row;
-            self.column_number=column;
-    
+            self.row_number = row;
+            self.column_number = column;
         }
-        
-        
     }
     fn undo(&mut self) {
         if let Some(new_index) = self.text_representation.undo() {
@@ -110,23 +113,18 @@ impl<T:TextRepresentation> App<T> {
                 fs::write("log.txt", log_message).unwrap();
             }
             self.refresh_string();
-    
-            let (row,column)=self.lines_widths.find_where_rope_index_fits(new_index);
-            if row==0 && column==0{
-                self.column_number=0;
-                self.column_number=0;
-                self.index=0;
+
+            let (row, column) = self.lines_widths.find_where_rope_index_fits(new_index);
+            if row == 0 && column == 0 {
+                self.column_number = 0;
+                self.column_number = 0;
+                self.index = 0;
                 return;
             }
             self.index = new_index;
-            self.row_number=row;
-            self.column_number=column;
-    
+            self.row_number = row;
+            self.column_number = column;
         }
-        
-        
-        
-        
     }
     fn refresh_string(&mut self) {
         self.text_representation.collect_string(&mut self.text);
@@ -193,7 +191,9 @@ impl<T:TextRepresentation> App<T> {
         } else {
             self.execute_line_command(DecreaseLineCommand::new(self.row_number));
         }
-        let final_index=self.text_representation.delete(1, self.index.saturating_sub(1));
+        let final_index = self
+            .text_representation
+            .delete(1, self.index.saturating_sub(1));
         self.refresh_string();
         self.move_cursor_left(count_to_offset, final_index);
         let log_message = format!(
@@ -206,7 +206,9 @@ impl<T:TextRepresentation> App<T> {
         fs::write("log.txt", log_message).unwrap();
     }
     fn add_char(&mut self, value: char) {
-        let final_index=self.text_representation.insert(value.to_string(), self.index);
+        let final_index = self
+            .text_representation
+            .insert(value.to_string(), self.index);
         self.refresh_string();
         self.execute_line_command(IncreaseLineCommand::new(self.row_number));
         self.move_cursor_right(final_index);
@@ -220,7 +222,7 @@ impl<T:TextRepresentation> App<T> {
     }
     fn paste(&mut self, value: String) {
         let length_of_paste_content = value.graphemes(true).count();
-        let final_index=self.text_representation.insert(value, self.index);
+        let final_index = self.text_representation.insert(value, self.index);
         self.refresh_string();
         self.move_right_due_to_paste(length_of_paste_content, final_index);
         let log_message = format!(
@@ -238,7 +240,9 @@ impl<T:TextRepresentation> App<T> {
     }
 
     fn jump_to_new_line(&mut self) {
-        let final_index=self.text_representation.insert("\n".to_string(), self.index);
+        let final_index = self
+            .text_representation
+            .insert("\n".to_string(), self.index);
         self.refresh_string();
         let current_line_length = self.lines_widths.index(self.row_number).unwrap_or_default();
         if self.column_number < current_line_length {
@@ -454,7 +458,7 @@ impl<T:TextRepresentation> App<T> {
                                 self.cursor_up_and_down_column_position_locked = false;
                                 self.add_char('z');
                             }
-                        },
+                        }
                         KeyCode::Char('y') => {
                             if key.modifiers == KeyModifiers::CONTROL {
                                 self.redo();
@@ -462,7 +466,7 @@ impl<T:TextRepresentation> App<T> {
                                 self.cursor_up_and_down_column_position_locked = false;
                                 self.add_char('y');
                             }
-                        },
+                        }
                         KeyCode::Char(value) => {
                             self.cursor_up_and_down_column_position_locked = false;
                             self.add_char(value);
@@ -500,8 +504,6 @@ impl<T:TextRepresentation> App<T> {
         &self.text
     }
 }
-
-
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     // Cut the given rectangle into three vertical pieces
@@ -550,4 +552,113 @@ pub fn get_line_widths(content: &str) -> (Vec<usize>, usize, usize) {
         lines_widths.push(line_count);
     }
     (lines_widths, lines_counts / 2, (lines_counts * 2) - 1)
+}
+pub fn generate_lines(
+    content: &str,
+    width: usize,
+    landmark_width: usize,
+) -> (Vec<TextEditorLine>, Vec<usize>, usize, usize) {
+    let lines: Vec<&str> = content.lines().collect();
+    let lines_count = lines.len();
+    let mut my_lines = Vec::with_capacity(lines_count * 3);
+    for item in lines {
+        if item.len() <= width {
+            my_lines.push(TextEditorLine {
+                line: item.to_string(),
+                type_of_line: TypeOfLine::Parent,
+                land_mark_offset: None,
+            });
+        } else {
+            let graphemes_in_word = item.graphemes(true);
+            let line_len = item.len();
+            let line_count = (line_len / width) + 1;
+            let mut lines_in_string = vec![
+                TextEditorLine {
+                    line: String::new(),
+                    type_of_line: TypeOfLine::Parent,
+                    land_mark_offset: None
+                };
+                line_count
+            ];
+            for (index, letter) in graphemes_in_word.enumerate() {
+                let index_in_lines_in_string = index / width;
+                lines_in_string[index_in_lines_in_string]
+                    .line
+                    .push_str(letter);
+            }
+            for i in 1..lines_in_string.len() {
+                lines_in_string[i].type_of_line = TypeOfLine::Child;
+            }
+            my_lines.extend(lines_in_string.into_iter());
+        }
+    }
+    let starting_of_gap = my_lines.len();
+    let ending_of_gap = starting_of_gap + lines_count.saturating_sub(1);
+
+    for _ in 0..lines_count {
+        my_lines.push(TextEditorLine::default());
+    }
+    let mut sum = 0;
+    let mut landmarks_positions = Vec::new();
+    for (index, line) in my_lines.iter_mut().take(lines_count).enumerate() {
+        sum += line.get_line_length();
+
+        if index % landmark_width == 0 {
+            line.land_mark_offset = Some(sum);
+            landmarks_positions.push(index);
+            sum = 0;
+        }
+    }
+
+    (
+        my_lines,
+        landmarks_positions,
+        starting_of_gap,
+        ending_of_gap,
+    )
+}
+#[derive(Clone, Default)]
+pub struct TextEditorLine {
+    line: String,
+    type_of_line: TypeOfLine,
+    land_mark_offset: Option<usize>,
+}
+impl TextEditorLine {
+    pub fn get_line_length(&self) -> usize {
+        self.line.len()
+    }
+    pub fn landmark_offset(&self) -> Option<usize> {
+        self.land_mark_offset
+    }
+    pub fn make_a_landmark(&mut self, offset: usize) {
+        self.land_mark_offset = Some(offset);
+    }
+    pub fn decrease_offset(&mut self, decrease: usize) -> Option<()> {
+        match self.land_mark_offset {
+            Some(ref mut offset) => {
+                *offset = offset.saturating_sub(decrease);
+                Some(())
+            }
+            None => None,
+        }
+    }
+    pub fn increase_offset(&mut self, increase: usize) -> Option<()> {
+        match self.land_mark_offset {
+            Some(ref mut offset) => {
+                *offset +=increase ;
+                Some(())
+            }
+            None => None,
+        }
+    }
+
+    pub fn line(&self) -> &str {
+        &self.line
+    }
+}
+#[derive(Clone, Default)]
+enum TypeOfLine {
+    #[default]
+    Parent,
+    Child,
 }
