@@ -330,9 +330,7 @@ impl<T: TextRepresentation> App<T> {
         .block(title_block.clone());
         frame.render_widget(title, chunks[0]);
 
-        let text_content =
-            Paragraph::new(Text::styled(self.text(), Style::default().fg(Color::White)))
-                .block(title_block);
+        let text_content = Paragraph::new(self.lines_text_editor.get_lines()).block(title_block);
         frame.render_widget(text_content, chunks[1]);
         if let Mode::Editing = self.mode {
             frame.set_cursor_position(Position::new(
@@ -624,6 +622,12 @@ pub struct TextEditorLine {
     land_mark_offset: Option<usize>,
 }
 impl TextEditorLine {
+    pub fn new(line: String) -> Self {
+        Self {
+            line,
+            ..TextEditorLine::default()
+        }
+    }
     pub fn get_line_length(&self) -> usize {
         self.line.len()
     }
@@ -645,7 +649,7 @@ impl TextEditorLine {
     pub fn increase_offset(&mut self, increase: usize) -> Option<()> {
         match self.land_mark_offset {
             Some(ref mut offset) => {
-                *offset +=increase ;
+                *offset += increase;
                 Some(())
             }
             None => None,
@@ -654,6 +658,20 @@ impl TextEditorLine {
 
     pub fn line(&self) -> &str {
         &self.line
+    }
+    pub fn split_line(&mut self, cut_position: usize) -> String {
+        let full_string = self.line.graphemes(true);
+        let mut first_part: String = String::new();
+        let mut second_part: String = String::new();
+        for (index, line) in full_string.enumerate() {
+            if index < cut_position {
+                first_part.push_str(line);
+            } else {
+                second_part.push_str(line);
+            }
+        }
+        self.line = first_part;
+        second_part
     }
 }
 #[derive(Clone, Default)]

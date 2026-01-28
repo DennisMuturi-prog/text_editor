@@ -1,5 +1,8 @@
 use std::cmp::max;
 
+use ratatui::text::Line;
+use unicode_segmentation::UnicodeSegmentation;
+
 use crate::app::{TextEditorLine, generate_lines, get_line_widths};
 #[derive(Default)]
 pub struct GapBuffer {
@@ -487,6 +490,82 @@ impl LinesGapBuffer {
         self.starting_of_gap = index + 1;
         self.ending_of_gap = self.starting_of_gap + gap_len - 2;
     }
+    pub fn add_item_with_content(&mut self, index: usize, content: String) {
+        let content_len = content.graphemes(true).count();
+        if self.ending_of_gap < self.starting_of_gap {
+            self.resize();
+        }
+
+        self.update_landmarks_due_to_addtion(index);
+        if index == self.starting_of_gap {
+            self.buffer[index] = TextEditorLine::new(content);
+            self.starting_of_gap += 1;
+            return;
+        }
+        let gap_len = (self.ending_of_gap - self.starting_of_gap) + 1;
+        if index > self.starting_of_gap {
+            for offset in 0..index - self.starting_of_gap {
+                let src_index = self.ending_of_gap + offset + 1;
+                let dest_index = self.starting_of_gap + offset;
+                self.buffer.swap(src_index, dest_index);
+            }
+        } else {
+            for src_index in (index..self.starting_of_gap).rev() {
+                let distance_from_start_of_gap = self.starting_of_gap - src_index;
+                let dest_index = self.ending_of_gap - (distance_from_start_of_gap - 1);
+                self.buffer.swap(src_index, dest_index);
+            }
+        }
+        self.buffer[index] = TextEditorLine::new(content);
+        self.starting_of_gap = index + 1;
+        self.ending_of_gap = self.starting_of_gap + gap_len - 2;
+        self.update_landmarks_offsets_due_to_addition(index, content_len);
+    }
+    pub fn split_a_line(&mut self, index: usize, cut_position: usize) -> Option<()> {
+        if self.ending_of_gap < self.starting_of_gap {
+            self.resize();
+        }
+        if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
+            return None;
+        }
+
+        if index < self.starting_of_gap {
+            let cut_content = self.buffer[index].split_line(cut_position);
+            self.add_item_with_content(index + 1, cut_content);
+            Some(())
+        } else {
+            let index_offset = index - self.starting_of_gap + 1;
+            let new_index = self.ending_of_gap + index_offset;
+            let cut_content = self.buffer[new_index].split_line(cut_position);
+
+            self.add_item_with_content(new_index + 1, cut_content);
+
+            Some(())
+        }
+    }
+    pub fn merge_two_lines(&mut self, index: usize, cut_position: usize) -> Option<()> {
+        if self.ending_of_gap < self.starting_of_gap {
+            self.resize();
+        }
+        if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
+            return None;
+        }
+
+        if index < self.starting_of_gap {
+            let cut_content = self.buffer[index].split_line(cut_position);
+            self.add_item_with_content(index + 1, cut_content);
+            Some(())
+        } else {
+            let index_offset = index - self.starting_of_gap + 1;
+            let new_index = self.ending_of_gap + index_offset;
+            let cut_content = self.buffer[new_index].split_line(cut_position);
+
+            self.add_item_with_content(new_index + 1, cut_content);
+
+            Some(())
+        }
+    }
+
     fn make_a_landmark(&mut self, index: usize, offset: usize) -> Option<()> {
         if self.ending_of_gap < self.starting_of_gap {
             self.resize();
@@ -628,14 +707,12 @@ impl LinesGapBuffer {
     pub fn starting_of_gap(&self) -> usize {
         self.starting_of_gap
     }
-    pub fn get_lines(&self)->Vec<&str>{
-        let mut lines=Vec::new();
-        for line in self.buffer.iter(){
-            lines.push(line.line());
+    pub fn get_lines(&self) -> Vec<Line<'_>> {
+        let mut lines = Vec::new();
+        for line in self.buffer.iter() {
+            lines.push(Line::raw(line.line()));
         }
         lines
-
-        
     }
 
     pub fn ending_of_gap(&self) -> usize {
