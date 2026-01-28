@@ -2,7 +2,7 @@ use std::{cell::RefCell};
 
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::{gap_buffer::GapBuffer, rope::{Node, insert, remove}};
+use crate::{gap_buffer::{GapBuffer, LinesGapBuffer}, rope::{insert, remove, Node}};
 
 pub struct InsertCommand{
     content:String,
@@ -209,3 +209,13 @@ pub trait LineWidthsCommand{
     fn execute(&self,line_widths:&mut GapBuffer);
     fn undo(&self,line_widths:&mut GapBuffer);   
 }
+
+pub trait TextEditorLineCommand{
+    fn execute(&self,text_editor_lines:&mut LinesGapBuffer);
+    fn undo(&self,text_editor_lines:&mut LinesGapBuffer);
+}
+pub struct AddLineCommand{}
+pub struct RemoveLineCommand{}
+pub struct SplitLineCommand{}
+pub struct MergeLineCommand{}
+pub struct ResizeLineCommand{}
