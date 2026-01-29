@@ -628,6 +628,12 @@ impl TextEditorLine {
             ..TextEditorLine::default()
         }
     }
+    pub fn add_to_line(&mut self,new_content:&str){
+        if let Some(ref mut offset)=self.land_mark_offset{
+            *offset+=new_content.graphemes(true).count();
+        }
+        self.line.push_str(new_content);
+    }
     pub fn get_line_length(&self) -> usize {
         self.line.len()
     }
@@ -669,6 +675,9 @@ impl TextEditorLine {
             } else {
                 second_part.push_str(line);
             }
+        }
+        if let Some(ref mut offset)=self.land_mark_offset{
+            *offset-=offset.saturating_sub(second_part.graphemes(true).count());
         }
         self.line = first_part;
         second_part

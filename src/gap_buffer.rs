@@ -543,7 +543,7 @@ impl LinesGapBuffer {
             Some(())
         }
     }
-    pub fn merge_two_lines(&mut self, index: usize, cut_position: usize) -> Option<()> {
+    pub fn merge_two_lines(&mut self, index: usize) -> Option<()> {
         if self.ending_of_gap < self.starting_of_gap {
             self.resize();
         }
@@ -552,15 +552,14 @@ impl LinesGapBuffer {
         }
 
         if index < self.starting_of_gap {
-            let cut_content = self.buffer[index].split_line(cut_position);
-            self.add_item_with_content(index + 1, cut_content);
+            let removed_line = self.remove_item(index)?;
+            self.increase_upper_line(index-1 ,removed_line.line());
             Some(())
         } else {
             let index_offset = index - self.starting_of_gap + 1;
             let new_index = self.ending_of_gap + index_offset;
-            let cut_content = self.buffer[new_index].split_line(cut_position);
-
-            self.add_item_with_content(new_index + 1, cut_content);
+            let removed_line = self.remove_item(new_index)?;
+            self.increase_upper_line(new_index-1 ,removed_line.line());
 
             Some(())
         }
@@ -683,6 +682,24 @@ impl LinesGapBuffer {
             let index_offset = index - self.starting_of_gap + 1;
             let new_index = self.ending_of_gap + index_offset;
             self.buffer[new_index].decrease_offset(decrease);
+            Some(())
+        }
+    }
+fn increase_upper_line(&mut self, index: usize, content:&str) -> Option<()> {
+        if self.ending_of_gap < self.starting_of_gap {
+            self.resize();
+        }
+        if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
+            return None;
+        }
+
+        if index < self.starting_of_gap {
+            self.buffer[index].add_to_line(content);
+            Some(())
+        } else {
+            let index_offset = index - self.starting_of_gap + 1;
+            let new_index = self.ending_of_gap + index_offset;
+            self.buffer[new_index].add_to_line(content);
             Some(())
         }
     }
