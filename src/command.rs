@@ -5,6 +5,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::{
     gap_buffer::{GapBuffer, LinesGapBuffer},
     rope::{Node, insert, remove},
+    text_representation::{self, TextRepresentation},
 };
 
 pub struct InsertCommand {
@@ -205,76 +206,94 @@ pub trait LineWidthsCommand {
 }
 
 pub trait TextEditorLineCommand {
-    fn execute(&self, text_editor_lines: &mut LinesGapBuffer);
-    fn undo(&self, text_editor_lines: &mut LinesGapBuffer);
+    fn execute<T>(&self, text_editor_lines: &mut LinesGapBuffer, text_representation: &T)
+    where
+        T: TextRepresentation;
+    fn undo<T>(&self, text_editor_lines: &mut LinesGapBuffer, text_representation: &T)
+    where
+        T: TextRepresentation;
 }
 pub struct AddLineCommand {
     index: usize,
 }
 impl TextEditorLineCommand for AddLineCommand {
-    fn execute(&self, text_editor_lines: &mut LinesGapBuffer) {
+    fn execute<T: TextRepresentation>(
+        &self,
+        text_editor_lines: &mut LinesGapBuffer,
+        _text_representation: &T,
+    ) {
         text_editor_lines.add_item(self.index);
     }
 
-    fn undo(&self, text_editor_lines: &mut LinesGapBuffer) {
+    fn undo<T: TextRepresentation>(
+        &self,
+        text_editor_lines: &mut LinesGapBuffer,
+        _text_representation: &T,
+    ) {
         text_editor_lines.remove_item(self.index);
     }
 }
 pub struct RemoveLineCommand {
-    index:usize
+    index: usize,
 }
 impl TextEditorLineCommand for RemoveLineCommand {
-    fn execute(&self, text_editor_lines: &mut LinesGapBuffer) {
+    fn execute<T: TextRepresentation>(
+        &self,
+        text_editor_lines: &mut LinesGapBuffer,
+        _text_representation: &T,
+    ) {
         text_editor_lines.remove_item(self.index);
     }
 
-    fn undo(&self, text_editor_lines: &mut LinesGapBuffer) {
+    fn undo<T: TextRepresentation>(&self, text_editor_lines: &mut LinesGapBuffer, _text: &T) {
         text_editor_lines.add_item(self.index);
     }
 }
 pub struct SplitLineCommand {
-    index:usize,
-    cut_position:usize
+    index: usize,
+    cut_position: usize,
 }
-impl TextEditorLineCommand for SplitLineCommand{
-    fn execute(&self, text_editor_lines: &mut LinesGapBuffer) {
+impl TextEditorLineCommand for SplitLineCommand {
+    fn execute<T: TextRepresentation>(&self, text_editor_lines: &mut LinesGapBuffer, _a: &T) {
         text_editor_lines.split_a_line(self.index, self.cut_position);
     }
 
-    fn undo(&self, text_editor_lines: &mut LinesGapBuffer) {
-        text_editor_lines.merge_two_lines(self.index+1);
+    fn undo<T: TextRepresentation>(&self, text_editor_lines: &mut LinesGapBuffer, _a: &T) {
+        text_editor_lines.merge_two_lines(self.index + 1);
     }
 }
 pub struct MergeLineCommand {
-    index:usize,
-    content_merged_len:usize
+    index: usize,
+    content_merged_len: usize,
 }
-impl TextEditorLineCommand for MergeLineCommand{
-   fn execute(&self, text_editor_lines: &mut LinesGapBuffer) {
+impl TextEditorLineCommand for MergeLineCommand {
+    fn execute<T: TextRepresentation>(&self, text_editor_lines: &mut LinesGapBuffer, _a: &T) {
         text_editor_lines.merge_two_lines(self.index);
     }
-    fn undo(&self, text_editor_lines: &mut LinesGapBuffer) {
+    fn undo<T: TextRepresentation>(&self, text_editor_lines: &mut LinesGapBuffer, _a: &T) {
         text_editor_lines.split_a_line(self.index, self.content_merged_len);
     }
-
-    
 }
-pub struct RefreshLineCommand {
-    index:usize,
-    offsets:(usize,usize),
-    new_content:String,
+pub struct InsertIntoLineCommand {
+    index: usize,
+    initial_offsets: (usize, usize),
+    content_len_added: usize,
 }
 
-
-
-
-
-impl TextEditorLineCommand for RefreshLineCommand{
-    fn execute(&self, text_editor_lines: &mut LinesGapBuffer) {
+impl TextEditorLineCommand for InsertIntoLineCommand {
+    fn execute<T: TextRepresentation>(
+        &self,
+        text_editor_lines: &mut LinesGapBuffer,
+        text_representation: &T,
+    ) {
         todo!()
     }
 
-    fn undo(&self, text_editor_lines: &mut LinesGapBuffer) {
+    fn undo<T: TextRepresentation>(
+        &self,
+        text_editor_lines: &mut LinesGapBuffer,
+        text_representation: &T,
+    ) {
         todo!()
     }
 }

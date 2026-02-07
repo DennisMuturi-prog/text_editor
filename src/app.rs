@@ -21,7 +21,7 @@ use crate::{
         JumpToNewLineWithoutContentCommand, LineMergeTopCommand, LineWidthsCommand, PasteCommand,
     },
     gap_buffer::{GapBuffer, LinesGapBuffer},
-    text_representation::TextRepresentation,
+    text_representation::{self, TextRepresentation},
 };
 #[derive(Default)]
 pub struct App<T: TextRepresentation> {
@@ -628,9 +628,25 @@ impl TextEditorLine {
             ..TextEditorLine::default()
         }
     }
-    pub fn add_to_line(&mut self,new_content:&str){
-        if let Some(ref mut offset)=self.land_mark_offset{
-            *offset+=new_content.graphemes(true).count();
+    pub fn change_line<T: TextRepresentation>(
+        &mut self,
+        bounds: (usize, usize),
+        text_representation: &T,
+    ) {
+        let old_line_len = self.line.graphemes(true).count();
+        text_representation.collect_substring(&mut self.line, bounds);
+        let new_line_len = self.line.graphemes(true).count();
+        if new_line_len > old_line_len
+            && let Some(ref mut offset) = self.land_mark_offset
+        {
+            *offset += new_line_len - old_line_len;
+        } else if let Some(ref mut offset) = self.land_mark_offset {
+            *offset = offset.saturating_sub(old_line_len - new_line_len);
+        }
+    }
+    pub fn add_to_line(&mut self, new_content: &str) {
+        if let Some(ref mut offset) = self.land_mark_offset {
+            *offset += new_content.graphemes(true).count();
         }
         self.line.push_str(new_content);
     }
@@ -676,8 +692,8 @@ impl TextEditorLine {
                 second_part.push_str(line);
             }
         }
-        if let Some(ref mut offset)=self.land_mark_offset{
-            *offset-=offset.saturating_sub(second_part.graphemes(true).count());
+        if let Some(ref mut offset) = self.land_mark_offset {
+            *offset -= offset.saturating_sub(second_part.graphemes(true).count());
         }
         self.line = first_part;
         second_part

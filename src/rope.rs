@@ -8,43 +8,47 @@ use std::{
 use ptree::{Style, TreeBuilder, TreeItem, item::StringItem};
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::{command::{Command, DeleteCommand, InsertCommand}, rc_substr::RcSubstr, text_representation::TextRepresentation};
+use crate::{
+    command::{Command, DeleteCommand, InsertCommand},
+    rc_substr::RcSubstr,
+    text_representation::TextRepresentation,
+};
 #[derive(Default)]
-pub struct Rope{
-    rope:Option<Box<Node>>,
-    undo_commands:Vec<Box<dyn Command>>,
-    redo_commands:Vec<Box<dyn Command>>
+pub struct Rope {
+    rope: Option<Box<Node>>,
+    undo_commands: Vec<Box<dyn Command>>,
+    redo_commands: Vec<Box<dyn Command>>,
 }
-impl Rope{
-    pub fn new(content:String)->Self {
+impl Rope {
+    pub fn new(content: String) -> Self {
         let content: Vec<&str> = content.graphemes(true).collect::<Vec<&str>>();
-        Self { rope: Some(build_rope(&content, 0, content.len() - 1).0), ..Default::default() }
-        
+        Self {
+            rope: Some(build_rope(&content, 0, content.len() - 1).0),
+            ..Default::default()
+        }
     }
     fn execute<C: Command + 'static>(&mut self, command: C) -> usize {
         let old_rope = self.rope.take();
-        let mut final_index=0;
+        let mut final_index = 0;
         if let Some(rope) = old_rope {
             let (new_rope, new_index) = command.execute(rope);
             self.rope = Some(new_rope);
-            final_index=new_index;
+            final_index = new_index;
         }
         self.undo_commands.push(Box::new(command));
         final_index
     }
 }
-impl TextRepresentation for Rope{
-    
-
-    fn insert(&mut self,content:String,index:usize)->usize {
+impl TextRepresentation for Rope {
+    fn insert(&mut self, content: String, index: usize) -> usize {
         self.execute(InsertCommand::new(content, index))
     }
 
-    fn delete(&mut self,length_to_cut:usize,index:usize)->usize {
+    fn delete(&mut self, length_to_cut: usize, index: usize) -> usize {
         self.execute(DeleteCommand::new(length_to_cut, index))
     }
 
-    fn undo(&mut self)->Option<usize> {
+    fn undo(&mut self) -> Option<usize> {
         if let Some(last_executed_command) = self.undo_commands.pop() {
             let old_rope = self.rope.take();
             if let Some(rope) = old_rope {
@@ -52,17 +56,15 @@ impl TextRepresentation for Rope{
                 self.redo_commands.push(last_executed_command);
                 self.rope = Some(new_rope);
                 Some(new_index)
-                
-            }else{
+            } else {
                 None
             }
-        }else{
+        } else {
             None
-            
         }
     }
 
-    fn redo(&mut self)->Option<usize> {
+    fn redo(&mut self) -> Option<usize> {
         if let Some(last_executed_command) = self.redo_commands.pop() {
             let old_rope = self.rope.take();
             if let Some(rope) = old_rope {
@@ -70,20 +72,24 @@ impl TextRepresentation for Rope{
                 self.undo_commands.push(last_executed_command);
                 self.rope = Some(new_rope);
                 Some(new_index)
-                
-            }else{
+            } else {
                 None
             }
-        }else{
+        } else {
             None
-            
         }
     }
 
-    fn collect_string(&self,text:&mut String) {
+    fn collect_string(&self, text: &mut String) {
         if let Some(ref rope) = self.rope {
             text.clear();
             collect_string(rope, text);
+        }
+    }
+    fn collect_substring(&self, text: &mut String, (starting, ending): (usize, usize)) {
+        if let Some(ref rope) = self.rope {
+            text.clear();
+            find_sub_str(rope, starting, ending, text);
         }
     }
 }
@@ -522,14 +528,14 @@ pub fn insert(rope: Box<Node>, index: usize, content: Vec<&str>) -> Box<Node> {
     concatenate(original_rope, new_merged_cut_nodes)
 }
 
-pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> (Box<Node>,String) {
-    let mut content_that_was_cut=String::new();
+pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> (Box<Node>, String) {
+    let mut content_that_was_cut = String::new();
     if rope.length == length_to_cut {
         collect_string(&rope, &mut content_that_was_cut);
-        return (Box::new(Node::default()),content_that_was_cut);
+        return (Box::new(Node::default()), content_that_was_cut);
     }
     if rope.length == 0 {
-        return (rope,content_that_was_cut);
+        return (rope, content_that_was_cut);
     }
 
     let mut original_rope = rope;
@@ -540,14 +546,17 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> (Box<Node>
 
         // Check bounds
         if index >= full_content.len() {
-            return (original_rope,String::new()); // Nothing to remove
+            return (original_rope, String::new()); // Nothing to remove
         }
 
         let end_index = std::cmp::min(index + length_to_cut, full_content.len());
 
         // Split into three parts
         let left_content = &full_content[0..index];
-        content_that_was_cut=full_content[index..end_index].iter().copied().collect::<String>();
+        content_that_was_cut = full_content[index..end_index]
+            .iter()
+            .copied()
+            .collect::<String>();
         let right_content = &full_content[end_index..];
 
         // Combine left and right
@@ -559,7 +568,7 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> (Box<Node>
 
         // Create new leaf node
         let new_node = Node::new(new_str, left_content.len() + right_content.len());
-        return (Box::new(new_node),content_that_was_cut);
+        return (Box::new(new_node), content_that_was_cut);
     }
     let mut cut_nodes = Vec::new();
 
@@ -567,7 +576,7 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> (Box<Node>
     let original_rope = rebalance(original_rope);
 
     if cut_nodes.is_empty() {
-        return (original_rope,content_that_was_cut);
+        return (original_rope, content_that_was_cut);
     }
 
     let mut new_merged_cut_nodes = {
@@ -577,7 +586,7 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> (Box<Node>
             match first {
                 Some(first_cut) => first_cut,
                 None => {
-                    return (original_rope,content_that_was_cut);
+                    return (original_rope, content_that_was_cut);
                 }
             }
         };
@@ -593,7 +602,7 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> (Box<Node>
     collect_string(&new_merged_cut_nodes, &mut content_that_was_cut);
 
     if cut_nodes.is_empty() {
-        return (original_rope,content_that_was_cut);
+        return (original_rope, content_that_was_cut);
     }
 
     let mut third_new_merged_cut_nodes = {
@@ -603,7 +612,7 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> (Box<Node>
             match first {
                 Some(first_cut) => first_cut,
                 None => {
-                    return (original_rope,content_that_was_cut);
+                    return (original_rope, content_that_was_cut);
                 }
             }
         };
@@ -614,10 +623,13 @@ pub fn remove(rope: Box<Node>, index: usize, length_to_cut: usize) -> (Box<Node>
     };
     third_new_merged_cut_nodes = rebalance(third_new_merged_cut_nodes);
     if original_rope.length == 0 {
-        return (third_new_merged_cut_nodes,content_that_was_cut);
+        return (third_new_merged_cut_nodes, content_that_was_cut);
     }
 
-    (concatenate(original_rope, third_new_merged_cut_nodes),content_that_was_cut)
+    (
+        concatenate(original_rope, third_new_merged_cut_nodes),
+        content_that_was_cut,
+    )
 }
 pub fn collect_leaves(node: Box<Node>, leaves: &mut Vec<Box<Node>>) {
     if node.str_content.is_some() {
