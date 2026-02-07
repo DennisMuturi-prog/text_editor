@@ -21,7 +21,7 @@ use crate::{
         JumpToNewLineWithoutContentCommand, LineMergeTopCommand, LineWidthsCommand, PasteCommand,
     },
     gap_buffer::{GapBuffer, LinesGapBuffer},
-    text_representation::{self, TextRepresentation},
+    text_representation::TextRepresentation,
 };
 #[derive(Default)]
 pub struct App<T: TextRepresentation> {
