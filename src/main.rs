@@ -1,108 +1,92 @@
-use std::{env, fs::File, io::{self, Read}};
+use ptree::print_tree;
+use std::{
+    env,
+    fs::File,
+    io::{self, Read},
+};
+use unicode_segmentation::UnicodeSegmentation;
 
 use ratatui::crossterm::terminal::size;
 use text_editor::{
-    app::App, rope::
-        Rope
-    
+    app::App,
+    rope::{Rope, build_rope, collect_string, insert},
 };
 fn main() -> io::Result<()> {
-    
-
-    let file_path={
+    let file_path = {
         let mut args = env::args();
-        match args.nth(1){
-            Some(arg1) =>{
-                println!("arg is {}",arg1);
+        match args.nth(1) {
+            Some(arg1) => {
+                println!("arg is {}", arg1);
                 arg1
-            },
-            None =>{                
+            }
+            None => {
                 println!("provide the file path or file name");
                 "example.txt".to_string()
-
-            },
+            }
         }
-        
     };
-    let mut file=match File::open(&file_path){
-        Ok(existing_file) => {
-            existing_file
-        },
-        Err(err) => {
-            match err.kind(){
-                io::ErrorKind::NotFound => {
-                    File::create_new(&file_path)?
-                    
-                },
-                io::ErrorKind::PermissionDenied => {
-                    return Err(err);
-                },
-                _ => {
-                    return Err(err);
-                    
-                },
+    let mut file = match File::open(&file_path) {
+        Ok(existing_file) => existing_file,
+        Err(err) => match err.kind() {
+            io::ErrorKind::NotFound => File::create_new(&file_path)?,
+            io::ErrorKind::PermissionDenied => {
+                return Err(err);
+            }
+            _ => {
+                return Err(err);
             }
         },
     };
-    let mut contents=String::new();
+    let mut contents = String::new();
     file.read_to_string(&mut contents)?;
-    let text_representation=Rope::new(contents.clone());
-    
-    ratatui::run(|terminal| App::new(contents,text_representation,size().unwrap().0 as usize).run(terminal))?;
-    
-    
+    let text_representation = Rope::new(contents.clone());
+
+    ratatui::run(|terminal| {
+        App::new(contents, text_representation, size().unwrap().0 as usize).run(terminal)
+    })?;
+
     // let content: Vec<&str> = contents.graphemes(true).collect::<Vec<&str>>();
-    
-    // let mut rope=build_rope(&content, 0, content.len()-1).0;
-    
+    //
+    // let mut rope = build_rope(&content, 0, content.len() - 1).0;
+    //
     // println!("original tree");
-    
-    // let file_name = "tree.txt";
-    // let file = File::create(file_name).unwrap();
-    
-    // write_tree(rope.as_ref(), file).unwrap();
-    
-    
+    //
     // print_tree(rope.as_ref()).unwrap();
-    
-    // rope=insert(rope, 8, "\n".to_string());
-    
-    // let mut collected_string=String::new();
+    //
+    // rope = insert(rope, 6, vec!["t"]);
+    //
+    // let mut collected_string = String::new();
     // collect_string(&rope, &mut collected_string);
     // println!("collected string");
-    // println!("{}",collected_string);
+    // println!("{}", collected_string);
     // println!("first tree");
-    
+    //
     // print_tree(rope.as_ref()).unwrap();
-    
+
     // for i in (0..9).rev(){
-    //     rope=remove(rope, i, 1);   
+    //     rope=remove(rope, i, 1);
     // }
     // collected_string.clear();
     // collect_string(&rope, &mut collected_string);
-    
+
     // println!("collected string 2");
     // println!("{}",collected_string);
     // println!("third tree");
-    
+
     // print_tree(rope.as_ref()).unwrap();
-    
-    
+
     // rope=insert(rope, 7, "\n".to_string());
-    
+
     // collected_string.clear();
     // collect_string(&rope, &mut collected_string);
-    
+
     // println!("collected string 3");
     // println!("{}",collected_string);
     // println!("third tree");
     // print_tree(rope.as_ref()).unwrap();
-    
-    
-    
-    
+
     // for i in (0..79).rev(){
-    //     rope=remove(rope, i, 1); 
+    //     rope=remove(rope, i, 1);
     // }
     // println!("new tree");
     // print_tree(rope.as_ref()).unwrap();
@@ -110,17 +94,15 @@ fn main() -> io::Result<()> {
     // collect_string(&rope, &mut collected);
     // println!("collected is {}",collected);
     // rope=remove(rope, 0, 1);
-    
-    
+
     // println!("new tree");
     // print_tree(rope.as_ref()).unwrap();
-    
+
     // collected.clear();
-    
+
     // collect_string(&rope, &mut collected);
     // println!("collected 2 is {}",collected);
-    
-    
+
     // let mut gap_buffer=GapBuffer::new(&contents);
     // let sum=gap_buffer.length_up_to_non_inclusive_index(5);
     // println!("the buffer is {:?} ,start is {} and end is {} and sum is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap(),sum);
@@ -131,12 +113,12 @@ fn main() -> io::Result<()> {
     // let removed=gap_buffer.remove_item(7);
     // println!("removed is {:?}",removed);
     // println!("the second buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
-    
+
     // gap_buffer.add_item(1);
-    
+
     // let sum=gap_buffer.length_up_to_non_inclusive_index(2);
     // println!("the buffer is {:?} ,start is {} and end is {} and sum is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap(),sum);
-    
+
     // println!("the new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
     // gap_buffer.add_item(5);
     // println!("the second new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
@@ -144,21 +126,15 @@ fn main() -> io::Result<()> {
     // println!("the third new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
     // gap_buffer.add_item(2);
     // println!("the third new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
-    
-    
+
     // let item =gap_buffer.index(9);
     // println!("item is {:?}",item);
-    
+
     // gap_buffer.add_item(5);
     // println!("the fourth new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
-    
-    
+
     // gap_buffer.increase(2);
     // println!("the fifth new buffer is {:?} ,start is {} and end is {}",gap_buffer.buffer(),gap_buffer.starting_of_gap(),gap_buffer.ending_of_gap());
-    
-    
-    
-    
 
     // let s = String::from("hello we ❤️ you");
     // let g = s.graphemes(true).collect::<Vec<&str>>();

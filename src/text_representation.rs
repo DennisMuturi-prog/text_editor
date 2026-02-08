@@ -5,4 +5,5 @@ pub trait TextRepresentation {
     fn redo(&mut self) -> Option<usize>;
     fn collect_string(&self, text: &mut String);
     fn collect_substring(&self, text: &mut String, bounds: (usize, usize));
+    fn display_structure(&self);
 }

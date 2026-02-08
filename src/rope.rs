@@ -1,11 +1,12 @@
 use std::{
     borrow::Cow,
     cmp::{max, min},
+    fs::File,
     io,
     ops::Deref,
 };
 
-use ptree::{Style, TreeBuilder, TreeItem, item::StringItem};
+use ptree::{Style, TreeBuilder, TreeItem, item::StringItem, write_tree};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
@@ -34,6 +35,7 @@ impl Rope {
             let (new_rope, new_index) = command.execute(rope);
             self.rope = Some(new_rope);
             final_index = new_index;
+            self.display_structure();
         }
         self.undo_commands.push(Box::new(command));
         final_index
@@ -90,6 +92,15 @@ impl TextRepresentation for Rope {
         if let Some(ref rope) = self.rope {
             text.clear();
             find_sub_str(rope, starting, ending, text);
+        }
+    }
+    fn display_structure(&self) {
+        let file_name = "tree.txt";
+        let file = File::options().write(true).open(file_name).unwrap();
+
+        // Write out the tree to the file
+        if let Some(ref node) = self.rope {
+            write_tree(node.as_ref(), file).unwrap()
         }
     }
 }

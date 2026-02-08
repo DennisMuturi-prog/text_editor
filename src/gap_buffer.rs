@@ -351,6 +351,19 @@ impl LinesGapBuffer {
             Some(self.buffer[new_index].get_line_length())
         }
     }
+    pub fn index_for_offset(&self, index: usize) -> Option<usize> {
+        if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
+            return None;
+        }
+
+        if index < self.starting_of_gap {
+            Some(self.buffer[index].get_line_length_for_offset())
+        } else {
+            let offset = index - self.starting_of_gap + 1;
+            let new_index = self.ending_of_gap + offset;
+            Some(self.buffer[new_index].get_line_length_for_offset())
+        }
+    }
     pub fn find_where_rope_index_fits(&self, rope_index: usize) -> (usize, usize) {
         let mut rope_index = rope_index as i32;
         for i in 0..self.starting_of_gap {
@@ -444,7 +457,7 @@ impl LinesGapBuffer {
 
             let mut starting = 0;
             while starting < index {
-                landmark_offset += self.index(starting).unwrap_or_default();
+                landmark_offset += self.index_for_offset(starting).unwrap_or_default();
                 starting += 1;
             }
             let starting = landmark_offset;
@@ -453,11 +466,8 @@ impl LinesGapBuffer {
         }
         for (inner_index, position) in self.landmarks_positions.iter().enumerate() {
             if *position == index {
-                let ending = self.buffer[*position]
-                    .landmark_offset()
-                    .unwrap()
-                    .saturating_sub(1);
-                let starting = ending - self.buffer[*position].get_line_length() + 1;
+                let ending = self.landmark_offset(*position).unwrap().saturating_sub(1);
+                let starting = ending - self.index(*position).unwrap() + 1;
                 return (starting, ending);
             } else if *position > index {
                 let previous_landmark_index = self.landmarks_positions[inner_index - 1];
@@ -465,7 +475,7 @@ impl LinesGapBuffer {
 
                 let mut starting = previous_landmark_index + 1;
                 while starting < index {
-                    landmark_offset += self.index(starting).unwrap_or_default();
+                    landmark_offset += self.index_for_offset(starting).unwrap_or_default();
                     starting += 1;
                 }
                 let starting = landmark_offset;
@@ -768,7 +778,10 @@ impl LinesGapBuffer {
     }
     pub fn get_lines(&self) -> Vec<Line<'_>> {
         let mut lines = Vec::new();
-        for line in self.buffer.iter() {
+        for line in self.buffer.iter().take(self.starting_of_gap) {
+            lines.push(Line::raw(line.line()));
+        }
+        for line in self.buffer.iter().skip(self.ending_of_gap + 1) {
             lines.push(Line::raw(line.line()));
         }
         lines

@@ -1,6 +1,5 @@
 use std::{
-    cmp::min,
-    fs::{self},
+    cmp::{max, min},
     io,
 };
 
@@ -17,9 +16,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     command::{
-        AddLineCommand, DecreaseLineCommand, IncreaseLineCommand, InsertIntoLineCommand,
-        JumpToNewLineWithContentCommand, JumpToNewLineWithoutContentCommand, LineCommandContext,
-        LineMergeTopCommand, LineWidthsCommand, MergeLineCommand, PasteCommand,
+        AddLineCommand, InsertIntoLineCommand, LineCommandContext, MergeLineCommand,
         RemoveFromLineCommand, SplitLineCommand, TextEditorLineCommand,
     },
     gap_buffer::{GapBuffer, LinesGapBuffer},
@@ -51,16 +48,8 @@ enum Mode {
 
 impl<T: TextRepresentation> App<T> {
     pub fn new(starting_string: String, text_representation: T, initial_width: usize) -> Self {
-        let lines_widths = GapBuffer::new(&starting_string);
         let lines_text_editor = LinesGapBuffer::new(&starting_string, initial_width, 10);
 
-        let log_message = format!(
-            "gap buffer is {:#?} starting is {} and ending is {}",
-            lines_widths.buffer(),
-            lines_widths.starting_of_gap(),
-            lines_widths.ending_of_gap()
-        );
-        fs::write("log.txt", log_message).unwrap();
         Self {
             text_representation,
             text: starting_string,
@@ -207,6 +196,7 @@ impl<T: TextRepresentation> App<T> {
         self.move_cursor_left(count_to_offset, final_index);
     }
     fn add_char(&mut self, value: char) {
+        self.text_representation.display_structure();
         let final_index = self
             .text_representation
             .insert(value.to_string(), self.index);
@@ -214,7 +204,6 @@ impl<T: TextRepresentation> App<T> {
         let offsets = self
             .lines_text_editor
             .find_offsets_for_line(self.row_number);
-        // println!("offsets are {} and {}", offsets.0, offsets.1);
         self.execute_line_command(InsertIntoLineCommand::new(
             self.row_number,
             1,
@@ -636,6 +625,10 @@ impl TextEditorLine {
     ) {
         let old_line_len = self.line.graphemes(true).count();
         text_representation.collect_substring(&mut self.line, bounds);
+        // println!(
+        //     "bounds are {} and {} ,content is {}",
+        //     bounds.0, bounds.1, self.line
+        // );
         let new_line_len = self.line.graphemes(true).count();
         if new_line_len > old_line_len
             && let Some(ref mut offset) = self.land_mark_offset
@@ -653,6 +646,9 @@ impl TextEditorLine {
     }
     pub fn get_line_length(&self) -> usize {
         self.line.len()
+    }
+    pub fn get_line_length_for_offset(&self) -> usize {
+        max(self.line.len(), 1)
     }
     pub fn landmark_offset(&self) -> Option<usize> {
         self.land_mark_offset
