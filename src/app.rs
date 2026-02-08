@@ -1,6 +1,6 @@
 use std::{
     cmp::{max, min},
-    io,
+    fs, io,
 };
 
 use ratatui::{
@@ -204,6 +204,10 @@ impl<T: TextRepresentation> App<T> {
         let offsets = self
             .lines_text_editor
             .find_offsets_for_line(self.row_number);
+        let content_to_be_logged = format!("bounds are {} {}", offsets.0, offsets.1);
+
+        fs::write("log.txt", content_to_be_logged).unwrap();
+
         self.execute_line_command(InsertIntoLineCommand::new(
             self.row_number,
             1,
@@ -648,7 +652,10 @@ impl TextEditorLine {
         self.line.len()
     }
     pub fn get_line_length_for_offset(&self) -> usize {
-        max(self.line.len(), 1)
+        match self.type_of_line {
+            TypeOfLine::Parent => self.line.len() + 1,
+            TypeOfLine::Child => self.line.len(),
+        }
     }
     pub fn landmark_offset(&self) -> Option<usize> {
         self.land_mark_offset

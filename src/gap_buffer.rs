@@ -494,6 +494,9 @@ impl LinesGapBuffer {
         if index == self.starting_of_gap {
             self.buffer[index] = TextEditorLine::default();
             self.starting_of_gap += 1;
+            if self.ending_of_gap < self.starting_of_gap {
+                self.resize();
+            }
             return;
         }
         let gap_len = (self.ending_of_gap - self.starting_of_gap) + 1;
@@ -527,6 +530,9 @@ impl LinesGapBuffer {
         if index == self.starting_of_gap {
             self.buffer[index] = TextEditorLine::new(content);
             self.starting_of_gap += 1;
+            if self.ending_of_gap < self.starting_of_gap {
+                self.resize();
+            }
             return;
         }
         let gap_len = (self.ending_of_gap - self.starting_of_gap) + 1;
