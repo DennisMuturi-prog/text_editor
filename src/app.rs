@@ -17,13 +17,14 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     command::{
-        DecreaseLineCommand, IncreaseLineCommand, JumpToNewLineWithContentCommand,
-        JumpToNewLineWithoutContentCommand, LineMergeTopCommand, LineWidthsCommand, PasteCommand,
+        AddLineCommand, DecreaseLineCommand, IncreaseLineCommand, InsertIntoLineCommand,
+        JumpToNewLineWithContentCommand, JumpToNewLineWithoutContentCommand, LineCommandContext,
+        LineMergeTopCommand, LineWidthsCommand, MergeLineCommand, PasteCommand,
+        RemoveFromLineCommand, SplitLineCommand, TextEditorLineCommand,
     },
     gap_buffer::{GapBuffer, LinesGapBuffer},
     text_representation::TextRepresentation,
 };
-#[derive(Default)]
 pub struct App<T: TextRepresentation> {
     text: String,
     exit: bool,
@@ -32,11 +33,10 @@ pub struct App<T: TextRepresentation> {
     column_number: usize,
     text_representation: T,
     index: usize,
-    lines_widths: GapBuffer,
     cursor_up_and_down_column_position_locked: bool,
     global_up_and_down_column_position: usize,
-    undo_line_commands: Vec<Box<dyn LineWidthsCommand>>,
-    redo_line_commands: Vec<Box<dyn LineWidthsCommand>>,
+    undo_line_commands: Vec<Box<dyn TextEditorLineCommand>>,
+    redo_line_commands: Vec<Box<dyn TextEditorLineCommand>>,
     window_height: usize,
     window_width: usize,
     lines_text_editor: LinesGapBuffer,
@@ -64,30 +64,38 @@ impl<T: TextRepresentation> App<T> {
         Self {
             text_representation,
             text: starting_string,
-            lines_widths,
             lines_text_editor,
-            ..App::default()
+            row_number: 0,
+            column_number: 0,
+            index: 0,
+            window_height: 0,
+            window_width: initial_width,
+            cursor_up_and_down_column_position_locked: false,
+            global_up_and_down_column_position: 0,
+            undo_line_commands: vec![],
+            redo_line_commands: vec![],
+            exit: false,
+            mode: Mode::default(),
         }
     }
-    fn execute_line_command<C: LineWidthsCommand + 'static>(&mut self, command: C) {
-        command.execute(&mut self.lines_widths);
+    fn execute_line_command<C: TextEditorLineCommand + 'static>(&mut self, command: C) {
+        command.execute(LineCommandContext::new(
+            &mut self.lines_text_editor,
+            &self.text_representation,
+        ));
         self.undo_line_commands.push(Box::new(command));
     }
     fn redo(&mut self) {
         if let Some(new_index) = self.text_representation.redo() {
             if let Some(last_line_command) = self.redo_line_commands.pop() {
-                last_line_command.execute(&mut self.lines_widths);
+                last_line_command.execute(LineCommandContext::new(
+                    &mut self.lines_text_editor,
+                    &self.text_representation,
+                ));
                 self.undo_line_commands.push(last_line_command);
-                let log_message = format!(
-                    "gap buffer is {:#?} starting is {} and ending is {}",
-                    self.lines_widths.buffer(),
-                    self.lines_widths.starting_of_gap(),
-                    self.lines_widths.ending_of_gap()
-                );
-                fs::write("log.txt", log_message).unwrap();
             }
             self.refresh_string();
-            let (row, column) = self.lines_widths.find_where_rope_index_fits(new_index);
+            let (row, column) = self.lines_text_editor.find_where_rope_index_fits(new_index);
             if row == 0 && column == 0 {
                 self.column_number = 0;
                 self.column_number = 0;
@@ -102,19 +110,15 @@ impl<T: TextRepresentation> App<T> {
     fn undo(&mut self) {
         if let Some(new_index) = self.text_representation.undo() {
             if let Some(last_line_command) = self.undo_line_commands.pop() {
-                last_line_command.undo(&mut self.lines_widths);
+                last_line_command.undo(LineCommandContext::new(
+                    &mut self.lines_text_editor,
+                    &self.text_representation,
+                ));
                 self.redo_line_commands.push(last_line_command);
-                let log_message = format!(
-                    "gap buffer is {:#?} starting is {} and ending is {}",
-                    self.lines_widths.buffer(),
-                    self.lines_widths.starting_of_gap(),
-                    self.lines_widths.ending_of_gap()
-                );
-                fs::write("log.txt", log_message).unwrap();
             }
             self.refresh_string();
 
-            let (row, column) = self.lines_widths.find_where_rope_index_fits(new_index);
+            let (row, column) = self.lines_text_editor.find_where_rope_index_fits(new_index);
             if row == 0 && column == 0 {
                 self.column_number = 0;
                 self.column_number = 0;
@@ -141,7 +145,7 @@ impl<T: TextRepresentation> App<T> {
             self.global_up_and_down_column_position = self.column_number;
             self.cursor_up_and_down_column_position_locked = true;
         }
-        match self.lines_widths.index(self.row_number + 1) {
+        match self.lines_text_editor.index(self.row_number + 1) {
             Some(next_line_length) => {
                 self.column_number = min(next_line_length, self.global_up_and_down_column_position);
             }
@@ -149,9 +153,9 @@ impl<T: TextRepresentation> App<T> {
                 self.column_number = 0;
             }
         }
-        self.row_number = min(self.row_number + 1, self.lines_widths.length());
+        self.row_number = min(self.row_number + 1, self.lines_text_editor.length());
         let length_upto_non_inclusive_current_row = self
-            .lines_widths
+            .lines_text_editor
             .length_up_to_non_inclusive_index(self.row_number);
         self.index = length_upto_non_inclusive_current_row + self.column_number + self.row_number;
     }
@@ -160,7 +164,10 @@ impl<T: TextRepresentation> App<T> {
             self.global_up_and_down_column_position = self.column_number;
             self.cursor_up_and_down_column_position_locked = true;
         }
-        match self.lines_widths.index(self.row_number.saturating_sub(1)) {
+        match self
+            .lines_text_editor
+            .index(self.row_number.saturating_sub(1))
+        {
             Some(next_line_length) => {
                 self.column_number = min(next_line_length, self.global_up_and_down_column_position);
             }
@@ -170,73 +177,67 @@ impl<T: TextRepresentation> App<T> {
         }
         self.row_number = self.row_number.saturating_sub(1);
         let length_upto_non_inclusive_current_row = self
-            .lines_widths
+            .lines_text_editor
             .length_up_to_non_inclusive_index(self.row_number);
         self.index = length_upto_non_inclusive_current_row + self.column_number + self.row_number;
     }
     fn delete_char(&mut self) {
-        let mut count_to_offset = 0;
-        if self.column_number == 0 && self.row_number > 0 {
-            count_to_offset = self.lines_widths.index(self.row_number).unwrap_or_default();
-            self.execute_line_command(LineMergeTopCommand::new(self.row_number, count_to_offset));
-        } else if self.column_number == 0 && self.row_number == 0 {
-            let log_message = format!(
-                "gap buffer is {:#?} starting is {} and ending is {}",
-                self.lines_widths.buffer(),
-                self.lines_widths.starting_of_gap(),
-                self.lines_widths.ending_of_gap()
-            );
-            fs::write("log2.txt", log_message).unwrap();
-            return;
-        } else {
-            self.execute_line_command(DecreaseLineCommand::new(self.row_number));
-        }
         let final_index = self
             .text_representation
             .delete(1, self.index.saturating_sub(1));
+        let mut count_to_offset = 0;
+        if self.column_number == 0 && self.row_number > 0 {
+            count_to_offset = self
+                .lines_text_editor
+                .index(self.row_number)
+                .unwrap_or_default();
+            self.execute_line_command(MergeLineCommand::new(self.row_number, count_to_offset));
+        } else if self.column_number == 0 && self.row_number == 0 {
+            return;
+        } else {
+            self.execute_line_command(RemoveFromLineCommand::new(
+                self.row_number,
+                1,
+                self.lines_text_editor
+                    .find_offsets_for_line(self.row_number),
+            ));
+        }
+
         self.refresh_string();
         self.move_cursor_left(count_to_offset, final_index);
-        let log_message = format!(
-            "gap buffer is {:#?} starting is {} and ending is {} and new index is {}",
-            self.lines_widths.buffer(),
-            self.lines_widths.starting_of_gap(),
-            self.lines_widths.ending_of_gap(),
-            final_index
-        );
-        fs::write("log.txt", log_message).unwrap();
     }
     fn add_char(&mut self, value: char) {
         let final_index = self
             .text_representation
             .insert(value.to_string(), self.index);
         self.refresh_string();
-        self.execute_line_command(IncreaseLineCommand::new(self.row_number));
+        let offsets = self
+            .lines_text_editor
+            .find_offsets_for_line(self.row_number);
+        // println!("offsets are {} and {}", offsets.0, offsets.1);
+        self.execute_line_command(InsertIntoLineCommand::new(
+            self.row_number,
+            1,
+            self.lines_text_editor
+                .find_offsets_for_line(self.row_number),
+        ));
         self.move_cursor_right(final_index);
-        let log_message = format!(
-            "gap buffer is {:#?} starting is {} and ending is {}",
-            self.lines_widths.buffer(),
-            self.lines_widths.starting_of_gap(),
-            self.lines_widths.ending_of_gap()
-        );
-        fs::write("log.txt", log_message).unwrap();
     }
     fn paste(&mut self, value: String) {
         let length_of_paste_content = value.graphemes(true).count();
         let final_index = self.text_representation.insert(value, self.index);
         self.refresh_string();
         self.move_right_due_to_paste(length_of_paste_content, final_index);
-        let log_message = format!(
-            "gap buffer is {:#?} starting is {} and ending is {}",
-            self.lines_widths.buffer(),
-            self.lines_widths.starting_of_gap(),
-            self.lines_widths.ending_of_gap()
-        );
-        fs::write("log.txt", log_message).unwrap();
     }
     fn move_right_due_to_paste(&mut self, length: usize, final_index: usize) {
         self.index = final_index;
         self.column_number += length;
-        self.execute_line_command(PasteCommand::new(self.row_number, length));
+        self.execute_line_command(InsertIntoLineCommand::new(
+            self.row_number,
+            length,
+            self.lines_text_editor
+                .find_offsets_for_line(self.row_number),
+        ));
     }
 
     fn jump_to_new_line(&mut self) {
@@ -244,26 +245,18 @@ impl<T: TextRepresentation> App<T> {
             .text_representation
             .insert("\n".to_string(), self.index);
         self.refresh_string();
-        let current_line_length = self.lines_widths.index(self.row_number).unwrap_or_default();
+        let current_line_length = self
+            .lines_text_editor
+            .index(self.row_number)
+            .unwrap_or_default();
         if self.column_number < current_line_length {
-            self.execute_line_command(JumpToNewLineWithContentCommand::new(
-                current_line_length,
-                self.row_number,
-                self.column_number,
-            ));
+            self.execute_line_command(SplitLineCommand::new(self.row_number, self.column_number));
             self.index = final_index;
         } else {
             self.index = final_index;
-            self.execute_line_command(JumpToNewLineWithoutContentCommand::new(self.row_number));
+            self.execute_line_command(AddLineCommand::new(self.row_number + 1));
         }
         self.move_cursor_down();
-        let log_message = format!(
-            "gap buffer is {:#?} starting is {} and ending is {}",
-            self.lines_widths.buffer(),
-            self.lines_widths.starting_of_gap(),
-            self.lines_widths.ending_of_gap()
-        );
-        fs::write("log.txt", log_message).unwrap();
     }
 
     fn move_cursor_left(&mut self, offset: usize, final_index: usize) {
@@ -271,7 +264,7 @@ impl<T: TextRepresentation> App<T> {
         if self.column_number == 0 {
             if self.row_number > 0 {
                 self.column_number = self
-                    .lines_widths
+                    .lines_text_editor
                     .index(self.row_number - 1)
                     .unwrap_or_default()
                     .saturating_sub(offset);
@@ -289,13 +282,21 @@ impl<T: TextRepresentation> App<T> {
     }
 
     fn move_cursor_right(&mut self, final_index: usize) {
-        if self.column_number == self.lines_widths.index(self.row_number).unwrap_or_default() {
-            if self.lines_widths.index(self.row_number + 1).is_some() {
+        if self.column_number
+            == self
+                .lines_text_editor
+                .index(self.row_number)
+                .unwrap_or_default()
+        {
+            if self.lines_text_editor.index(self.row_number + 1).is_some() {
                 self.index = final_index;
                 self.row_number += 1;
                 self.column_number = 0;
             } else {
-                let value = self.lines_widths.index(self.row_number).unwrap_or_default();
+                let value = self
+                    .lines_text_editor
+                    .index(self.row_number)
+                    .unwrap_or_default();
                 if value == 0 {
                     return;
                 }
@@ -628,10 +629,10 @@ impl TextEditorLine {
             ..TextEditorLine::default()
         }
     }
-    pub fn change_line<T: TextRepresentation>(
+    pub fn change_line(
         &mut self,
         bounds: (usize, usize),
-        text_representation: &T,
+        text_representation: &dyn TextRepresentation,
     ) {
         let old_line_len = self.line.graphemes(true).count();
         text_representation.collect_substring(&mut self.line, bounds);

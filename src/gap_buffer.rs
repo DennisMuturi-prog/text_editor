@@ -3,7 +3,10 @@ use std::cmp::max;
 use ratatui::text::Line;
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::app::{TextEditorLine, generate_lines, get_line_widths};
+use crate::{
+    app::{TextEditorLine, generate_lines, get_line_widths},
+    text_representation::TextRepresentation,
+};
 #[derive(Default)]
 pub struct GapBuffer {
     buffer: Vec<usize>,
@@ -335,10 +338,7 @@ impl LinesGapBuffer {
         }
     }
 
-    pub fn index(&mut self, index: usize) -> Option<usize> {
-        if self.ending_of_gap < self.starting_of_gap {
-            self.resize();
-        }
+    pub fn index(&self, index: usize) -> Option<usize> {
         if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
             return None;
         }
@@ -351,10 +351,7 @@ impl LinesGapBuffer {
             Some(self.buffer[new_index].get_line_length())
         }
     }
-    pub fn find_where_rope_index_fits(&mut self, rope_index: usize) -> (usize, usize) {
-        if self.ending_of_gap < self.starting_of_gap {
-            self.resize();
-        }
+    pub fn find_where_rope_index_fits(&self, rope_index: usize) -> (usize, usize) {
         let mut rope_index = rope_index as i32;
         for i in 0..self.starting_of_gap {
             rope_index -= (self.buffer[i].get_line_length()) as i32;
@@ -381,11 +378,9 @@ impl LinesGapBuffer {
         }
         (0, 0)
     }
-    pub fn length_up_to_non_inclusive_index(&mut self, index: usize) -> usize {
+    pub fn length_up_to_non_inclusive_index(&self, index: usize) -> usize {
         let mut index = index;
-        if self.ending_of_gap < self.starting_of_gap {
-            self.resize();
-        }
+
         let content_len = self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1);
         if index >= content_len {
             index = content_len;
@@ -411,10 +406,7 @@ impl LinesGapBuffer {
             sum_before_gap + sum_after_gap
         }
     }
-    pub fn length(&mut self) -> usize {
-        if self.ending_of_gap < self.starting_of_gap {
-            self.resize();
-        }
+    pub fn length(&self) -> usize {
         self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1)
     }
 
@@ -433,7 +425,32 @@ impl LinesGapBuffer {
             }
         }
     }
+    fn landmark_offset(&self, index: usize) -> Option<usize> {
+        if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
+            return None;
+        }
+
+        if index < self.starting_of_gap {
+            self.buffer[index].landmark_offset()
+        } else {
+            let offset = index - self.starting_of_gap + 1;
+            let new_index = self.ending_of_gap + offset;
+            self.buffer[new_index].landmark_offset()
+        }
+    }
     pub fn find_offsets_for_line(&self, index: usize) -> (usize, usize) {
+        if self.landmarks_positions.len() <= 1 {
+            let mut landmark_offset = 0;
+
+            let mut starting = 0;
+            while starting < index {
+                landmark_offset += self.index(starting).unwrap_or_default();
+                starting += 1;
+            }
+            let starting = landmark_offset;
+            let ending = landmark_offset + self.index(index).unwrap().saturating_sub(1);
+            return (starting, ending);
+        }
         for (inner_index, position) in self.landmarks_positions.iter().enumerate() {
             if *position == index {
                 let ending = self.buffer[*position]
@@ -444,18 +461,15 @@ impl LinesGapBuffer {
                 return (starting, ending);
             } else if *position > index {
                 let previous_landmark_index = self.landmarks_positions[inner_index - 1];
-                let mut landmark_offset = self.buffer[previous_landmark_index]
-                    .landmark_offset()
-                    .unwrap();
+                let mut landmark_offset = self.landmark_offset(previous_landmark_index).unwrap();
 
                 let mut starting = previous_landmark_index + 1;
                 while starting < index {
-                    landmark_offset += self.buffer[starting].get_line_length();
+                    landmark_offset += self.index(starting).unwrap_or_default();
                     starting += 1;
                 }
                 let starting = landmark_offset;
-                let ending =
-                    landmark_offset + self.buffer[index].get_line_length().saturating_sub(1);
+                let ending = landmark_offset + self.index(index).unwrap().saturating_sub(1);
                 return (starting, ending);
             }
         }
@@ -489,6 +503,9 @@ impl LinesGapBuffer {
         self.buffer[index] = TextEditorLine::default();
         self.starting_of_gap = index + 1;
         self.ending_of_gap = self.starting_of_gap + gap_len - 2;
+        if self.ending_of_gap < self.starting_of_gap {
+            self.resize();
+        }
     }
     pub fn add_item_with_content(&mut self, index: usize, content: String) {
         let content_len = content.graphemes(true).count();
@@ -520,6 +537,31 @@ impl LinesGapBuffer {
         self.starting_of_gap = index + 1;
         self.ending_of_gap = self.starting_of_gap + gap_len - 2;
         self.update_landmarks_offsets_due_to_addition(index, content_len);
+        if self.ending_of_gap < self.starting_of_gap {
+            self.resize();
+        }
+    }
+    pub fn change_line(
+        &mut self,
+        index: usize,
+        bounds: (usize, usize),
+        text_representation: &dyn TextRepresentation,
+    ) -> Option<()> {
+        if self.ending_of_gap < self.starting_of_gap {
+            self.resize();
+        }
+        if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
+            return None;
+        }
+        if index < self.starting_of_gap {
+            self.buffer[index].change_line(bounds, text_representation);
+            Some(())
+        } else {
+            let index_offset = index - self.starting_of_gap + 1;
+            let new_index = self.ending_of_gap + index_offset;
+            self.buffer[new_index].change_line(bounds, text_representation);
+            Some(())
+        }
     }
     pub fn split_a_line(&mut self, index: usize, cut_position: usize) -> Option<()> {
         if self.ending_of_gap < self.starting_of_gap {
@@ -553,13 +595,13 @@ impl LinesGapBuffer {
 
         if index < self.starting_of_gap {
             let removed_line = self.remove_item(index)?;
-            self.increase_upper_line(index-1 ,removed_line.line());
+            self.increase_upper_line(index - 1, removed_line.line());
             Some(())
         } else {
             let index_offset = index - self.starting_of_gap + 1;
             let new_index = self.ending_of_gap + index_offset;
             let removed_line = self.remove_item(new_index)?;
-            self.increase_upper_line(new_index-1 ,removed_line.line());
+            self.increase_upper_line(new_index - 1, removed_line.line());
 
             Some(())
         }
@@ -685,7 +727,7 @@ impl LinesGapBuffer {
             Some(())
         }
     }
-fn increase_upper_line(&mut self, index: usize, content:&str) -> Option<()> {
+    fn increase_upper_line(&mut self, index: usize, content: &str) -> Option<()> {
         if self.ending_of_gap < self.starting_of_gap {
             self.resize();
         }

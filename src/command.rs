@@ -5,7 +5,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::{
     gap_buffer::{GapBuffer, LinesGapBuffer},
     rope::{Node, insert, remove},
-    text_representation::{self, TextRepresentation},
+    text_representation::TextRepresentation,
 };
 
 pub struct InsertCommand {
@@ -206,72 +206,90 @@ pub trait LineWidthsCommand {
 }
 
 pub trait TextEditorLineCommand {
-    fn execute<T>(&self, text_editor_lines: &mut LinesGapBuffer, text_representation: &T)
-    where
-        T: TextRepresentation;
-    fn undo<T>(&self, text_editor_lines: &mut LinesGapBuffer, text_representation: &T)
-    where
-        T: TextRepresentation;
+    fn execute(&self, line_command_ctx: LineCommandContext);
+    fn undo(&self, line_command_ctx: LineCommandContext);
 }
 pub struct AddLineCommand {
     index: usize,
 }
+impl AddLineCommand {
+    pub fn new(index: usize) -> Self {
+        Self { index }
+    }
+}
 impl TextEditorLineCommand for AddLineCommand {
-    fn execute<T: TextRepresentation>(
-        &self,
-        text_editor_lines: &mut LinesGapBuffer,
-        _text_representation: &T,
-    ) {
-        text_editor_lines.add_item(self.index);
+    fn execute(&self, line_command_ctx: LineCommandContext) {
+        line_command_ctx.text_editor_lines.add_item(self.index);
     }
 
-    fn undo<T: TextRepresentation>(
-        &self,
-        text_editor_lines: &mut LinesGapBuffer,
-        _text_representation: &T,
-    ) {
-        text_editor_lines.remove_item(self.index);
+    fn undo(&self, line_command_ctx: LineCommandContext) {
+        line_command_ctx.text_editor_lines.remove_item(self.index);
     }
 }
 pub struct RemoveLineCommand {
     index: usize,
 }
+impl RemoveLineCommand {
+    pub fn new(index: usize) -> Self {
+        Self { index }
+    }
+}
 impl TextEditorLineCommand for RemoveLineCommand {
-    fn execute<T: TextRepresentation>(
-        &self,
-        text_editor_lines: &mut LinesGapBuffer,
-        _text_representation: &T,
-    ) {
-        text_editor_lines.remove_item(self.index);
+    fn execute(&self, line_command_ctx: LineCommandContext) {
+        line_command_ctx.text_editor_lines.remove_item(self.index);
     }
 
-    fn undo<T: TextRepresentation>(&self, text_editor_lines: &mut LinesGapBuffer, _text: &T) {
-        text_editor_lines.add_item(self.index);
+    fn undo(&self, line_command_ctx: LineCommandContext) {
+        line_command_ctx.text_editor_lines.add_item(self.index);
     }
 }
 pub struct SplitLineCommand {
     index: usize,
     cut_position: usize,
 }
+impl SplitLineCommand {
+    pub fn new(index: usize, cut_position: usize) -> Self {
+        Self {
+            index,
+            cut_position,
+        }
+    }
+}
 impl TextEditorLineCommand for SplitLineCommand {
-    fn execute<T: TextRepresentation>(&self, text_editor_lines: &mut LinesGapBuffer, _a: &T) {
-        text_editor_lines.split_a_line(self.index, self.cut_position);
+    fn execute(&self, line_command_ctx: LineCommandContext) {
+        line_command_ctx
+            .text_editor_lines
+            .split_a_line(self.index, self.cut_position);
     }
 
-    fn undo<T: TextRepresentation>(&self, text_editor_lines: &mut LinesGapBuffer, _a: &T) {
-        text_editor_lines.merge_two_lines(self.index + 1);
+    fn undo(&self, line_command_ctx: LineCommandContext) {
+        line_command_ctx
+            .text_editor_lines
+            .merge_two_lines(self.index + 1);
     }
 }
 pub struct MergeLineCommand {
     index: usize,
     content_merged_len: usize,
 }
-impl TextEditorLineCommand for MergeLineCommand {
-    fn execute<T: TextRepresentation>(&self, text_editor_lines: &mut LinesGapBuffer, _a: &T) {
-        text_editor_lines.merge_two_lines(self.index);
+impl MergeLineCommand {
+    pub fn new(index: usize, content_merged_len: usize) -> Self {
+        Self {
+            index,
+            content_merged_len,
+        }
     }
-    fn undo<T: TextRepresentation>(&self, text_editor_lines: &mut LinesGapBuffer, _a: &T) {
-        text_editor_lines.split_a_line(self.index, self.content_merged_len);
+}
+impl TextEditorLineCommand for MergeLineCommand {
+    fn execute(&self, line_command_ctx: LineCommandContext) {
+        line_command_ctx
+            .text_editor_lines
+            .merge_two_lines(self.index);
+    }
+    fn undo(&self, line_command_ctx: LineCommandContext) {
+        line_command_ctx
+            .text_editor_lines
+            .split_a_line(self.index, self.content_merged_len);
     }
 }
 pub struct InsertIntoLineCommand {
@@ -279,21 +297,85 @@ pub struct InsertIntoLineCommand {
     initial_offsets: (usize, usize),
     content_len_added: usize,
 }
+impl InsertIntoLineCommand {
+    pub fn new(index: usize, content_len_added: usize, initial_offsets: (usize, usize)) -> Self {
+        Self {
+            index,
+            content_len_added,
+            initial_offsets,
+        }
+    }
+}
 
 impl TextEditorLineCommand for InsertIntoLineCommand {
-    fn execute<T: TextRepresentation>(
-        &self,
-        text_editor_lines: &mut LinesGapBuffer,
-        text_representation: &T,
-    ) {
-        todo!()
+    fn execute(&self, line_command_ctx: LineCommandContext) {
+        line_command_ctx.text_editor_lines.change_line(
+            self.index,
+            (
+                self.initial_offsets.0,
+                self.initial_offsets.1 + self.content_len_added,
+            ),
+            line_command_ctx.text_representation,
+        );
     }
 
-    fn undo<T: TextRepresentation>(
-        &self,
-        text_editor_lines: &mut LinesGapBuffer,
-        text_representation: &T,
-    ) {
-        todo!()
+    fn undo(&self, line_command_ctx: LineCommandContext) {
+        line_command_ctx.text_editor_lines.change_line(
+            self.index,
+            self.initial_offsets,
+            line_command_ctx.text_representation,
+        );
+    }
+}
+pub struct RemoveFromLineCommand {
+    index: usize,
+    initial_offsets: (usize, usize),
+    content_len_removed: usize,
+}
+impl RemoveFromLineCommand {
+    pub fn new(index: usize, content_len_removed: usize, initial_offsets: (usize, usize)) -> Self {
+        Self {
+            index,
+            content_len_removed,
+            initial_offsets,
+        }
+    }
+}
+
+impl TextEditorLineCommand for RemoveFromLineCommand {
+    fn execute(&self, line_command_ctx: LineCommandContext) {
+        line_command_ctx.text_editor_lines.change_line(
+            self.index,
+            (
+                self.initial_offsets.0,
+                self.initial_offsets
+                    .1
+                    .saturating_sub(self.content_len_removed),
+            ),
+            line_command_ctx.text_representation,
+        );
+    }
+
+    fn undo(&self, line_command_ctx: LineCommandContext) {
+        line_command_ctx.text_editor_lines.change_line(
+            self.index,
+            self.initial_offsets,
+            line_command_ctx.text_representation,
+        );
+    }
+}
+pub struct LineCommandContext<'a> {
+    text_editor_lines: &'a mut LinesGapBuffer,
+    text_representation: &'a dyn TextRepresentation,
+}
+impl<'a> LineCommandContext<'a> {
+    pub fn new(
+        text_editor_lines: &'a mut LinesGapBuffer,
+        text_representation: &'a dyn TextRepresentation,
+    ) -> Self {
+        Self {
+            text_editor_lines,
+            text_representation,
+        }
     }
 }
