@@ -1,28 +1,55 @@
-gap buffer is [
-    4,
-    999,
-    999,
-    999,
-    999,
-    999,
-    999,
-    999,
-    999,
-    999,
-    999,
-    999,
-    999,
-    999,
-    999,
-    999,
-    999,
-    999,
-    999,
-    999,
-    999,
-    43,
-    45,
-    29,
-    23,
-    14,
-] starting is 1 and ending is 20
+the line gap buffer 
+ [
+    TextEditorLine {
+        line: "fd f fdfd dfdf dfdf dfdfd dfdfd dfdfd",
+        type_of_line: Parent,
+        land_mark_offset: Some(
+            37,
+        ),
+    },
+    TextEditorLine {
+        line: "fdfd dfdfd dfdfd dfdf dfdf dfdf dfd ",
+        type_of_line: Parent,
+        land_mark_offset: None,
+    },
+    TextEditorLine {
+        line: "fdd dfdfdfdfdfd fddf",
+        type_of_line: Parent,
+        land_mark_offset: None,
+    },
+    TextEditorLine {
+        line: "fdfdfdffdf fdfd dfdf dfd",
+        type_of_line: Parent,
+        land_mark_offset: None,
+    },
+    TextEditorLine {
+        line: "fdfdf dfdfd dfdfdf dfdfd fdd d",
+        type_of_line: Parent,
+        land_mark_offset: None,
+    },
+    TextEditorLine {
+        line: "dfd dfdf",
+        type_of_line: Parent,
+        land_mark_offset: None,
+    },
+    TextEditorLine {
+        line: "sdsdsdsdsds",
+        type_of_line: Parent,
+        land_mark_offset: None,
+    },
+    TextEditorLine {
+        line: "",
+        type_of_line: Parent,
+        land_mark_offset: None,
+    },
+    TextEditorLine {
+        line: "",
+        type_of_line: Parent,
+        land_mark_offset: None,
+    },
+    TextEditorLine {
+        line: "sdsds",
+        type_of_line: Parent,
+        land_mark_offset: None,
+    },
+] and the start is 7 and ending is 9

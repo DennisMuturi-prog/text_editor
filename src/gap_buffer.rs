@@ -461,8 +461,14 @@ impl LinesGapBuffer {
                 starting += 1;
             }
             let starting = landmark_offset;
-            let ending = landmark_offset + self.index(index).unwrap().saturating_sub(1);
-            return (starting, ending);
+            let line_length = self.index(index).unwrap();
+            if line_length == 0 {
+                let ending = starting.saturating_sub(1);
+                return (starting, ending);
+            } else {
+                let ending = landmark_offset + self.index(index).unwrap().saturating_sub(1);
+                return (starting, ending);
+            }
         }
         for (inner_index, position) in self.landmarks_positions.iter().enumerate() {
             if *position == index {
@@ -654,6 +660,7 @@ impl LinesGapBuffer {
         if self.ending_of_gap < self.starting_of_gap {
             self.resize();
         }
+        let logical_index = index;
         if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
             return None;
         }
@@ -668,9 +675,9 @@ impl LinesGapBuffer {
         };
         let value_to_be_removed = self.buffer[index].clone();
         if let Some(offset) = value_to_be_removed.landmark_offset() {
-            match self.make_a_landmark(index + 1, offset) {
+            match self.make_a_landmark(logical_index + 1, offset) {
                 Some(_) => {
-                    self.update_position_to_crowned_landmark(index);
+                    self.update_position_to_crowned_landmark(logical_index);
                 }
                 None => {
                     self.landmarks_positions.pop();
@@ -698,8 +705,11 @@ impl LinesGapBuffer {
             self.ending_of_gap -= (self.starting_of_gap - index) - 1;
             self.starting_of_gap = index;
         }
-        self.update_landmarks_positions_due_to_removal(index);
-        self.update_landmarks_offsets_due_to_removal(index, value_to_be_removed.get_line_length());
+        self.update_landmarks_positions_due_to_removal(logical_index);
+        self.update_landmarks_offsets_due_to_removal(
+            logical_index,
+            value_to_be_removed.get_line_length(),
+        );
         Some(value_to_be_removed)
     }
     fn update_landmarks_positions_due_to_removal(&mut self, index: usize) {
@@ -795,5 +805,9 @@ impl LinesGapBuffer {
 
     pub fn ending_of_gap(&self) -> usize {
         self.ending_of_gap
+    }
+
+    pub fn buffer(&self) -> &[TextEditorLine] {
+        &self.buffer
     }
 }

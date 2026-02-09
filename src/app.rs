@@ -1,7 +1,4 @@
-use std::{
-    cmp::{max, min},
-    fs, io,
-};
+use std::{cmp::min, fs, io};
 
 use ratatui::{
     DefaultTerminal, Frame,
@@ -19,11 +16,10 @@ use crate::{
         AddLineCommand, InsertIntoLineCommand, LineCommandContext, MergeLineCommand,
         RemoveFromLineCommand, SplitLineCommand, TextEditorLineCommand,
     },
-    gap_buffer::{GapBuffer, LinesGapBuffer},
+    gap_buffer::LinesGapBuffer,
     text_representation::TextRepresentation,
 };
 pub struct App<T: TextRepresentation> {
-    text: String,
     exit: bool,
     mode: Mode,
     row_number: usize,
@@ -52,7 +48,6 @@ impl<T: TextRepresentation> App<T> {
 
         Self {
             text_representation,
-            text: starting_string,
             lines_text_editor,
             row_number: 0,
             column_number: 0,
@@ -72,6 +67,13 @@ impl<T: TextRepresentation> App<T> {
             &mut self.lines_text_editor,
             &self.text_representation,
         ));
+        let contents = format!(
+            "the line gap buffer \n {:#?} and the start is {} and ending is {}",
+            self.lines_text_editor.buffer(),
+            self.lines_text_editor.starting_of_gap(),
+            self.lines_text_editor.ending_of_gap()
+        );
+        fs::write("log2.txt", contents).unwrap();
         self.undo_line_commands.push(Box::new(command));
     }
     fn redo(&mut self) {
@@ -83,7 +85,6 @@ impl<T: TextRepresentation> App<T> {
                 ));
                 self.undo_line_commands.push(last_line_command);
             }
-            self.refresh_string();
             let (row, column) = self.lines_text_editor.find_where_rope_index_fits(new_index);
             if row == 0 && column == 0 {
                 self.column_number = 0;
@@ -105,7 +106,6 @@ impl<T: TextRepresentation> App<T> {
                 ));
                 self.redo_line_commands.push(last_line_command);
             }
-            self.refresh_string();
 
             let (row, column) = self.lines_text_editor.find_where_rope_index_fits(new_index);
             if row == 0 && column == 0 {
@@ -119,9 +119,7 @@ impl<T: TextRepresentation> App<T> {
             self.column_number = column;
         }
     }
-    fn refresh_string(&mut self) {
-        self.text_representation.collect_string(&mut self.text);
-    }
+
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         while !self.exit {
             terminal.draw(|frame| self.draw(frame))?;
@@ -192,7 +190,6 @@ impl<T: TextRepresentation> App<T> {
             ));
         }
 
-        self.refresh_string();
         self.move_cursor_left(count_to_offset, final_index);
     }
     fn add_char(&mut self, value: char) {
@@ -200,7 +197,6 @@ impl<T: TextRepresentation> App<T> {
         let final_index = self
             .text_representation
             .insert(value.to_string(), self.index);
-        self.refresh_string();
         let offsets = self
             .lines_text_editor
             .find_offsets_for_line(self.row_number);
@@ -219,7 +215,6 @@ impl<T: TextRepresentation> App<T> {
     fn paste(&mut self, value: String) {
         let length_of_paste_content = value.graphemes(true).count();
         let final_index = self.text_representation.insert(value, self.index);
-        self.refresh_string();
         self.move_right_due_to_paste(length_of_paste_content, final_index);
     }
     fn move_right_due_to_paste(&mut self, length: usize, final_index: usize) {
@@ -237,7 +232,6 @@ impl<T: TextRepresentation> App<T> {
         let final_index = self
             .text_representation
             .insert("\n".to_string(), self.index);
-        self.refresh_string();
         let current_line_length = self
             .lines_text_editor
             .index(self.row_number)
@@ -491,10 +485,6 @@ impl<T: TextRepresentation> App<T> {
         }
         Ok(())
     }
-
-    fn text(&self) -> &str {
-        &self.text
-    }
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
@@ -609,7 +599,7 @@ pub fn generate_lines(
         ending_of_gap,
     )
 }
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct TextEditorLine {
     line: String,
     type_of_line: TypeOfLine,
@@ -703,7 +693,7 @@ impl TextEditorLine {
         second_part
     }
 }
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 enum TypeOfLine {
     #[default]
     Parent,

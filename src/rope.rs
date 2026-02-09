@@ -813,6 +813,9 @@ pub fn find_sub_str(
     if starting >= node.length {
         return None;
     }
+    if starting > ending {
+        return None;
+    }
     let ending = min(node.length - 1, ending);
     sub_str(node, starting, ending, collected_string);
     Some(())
