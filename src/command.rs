@@ -284,7 +284,8 @@ impl TextEditorLineCommand for MergeLineCommand {
     fn execute(&self, line_command_ctx: LineCommandContext) {
         line_command_ctx
             .text_editor_lines
-            .merge_two_lines(self.index);
+            .merge_two_lines(self.index)
+            .unwrap();
     }
     fn undo(&self, line_command_ctx: LineCommandContext) {
         line_command_ctx
@@ -379,3 +380,4 @@ impl<'a> LineCommandContext<'a> {
         }
     }
 }
+

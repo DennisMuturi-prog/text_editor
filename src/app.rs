@@ -137,7 +137,7 @@ impl<T: TextRepresentation> App<T> {
                 self.column_number = min(next_line_length, self.global_up_and_down_column_position);
             }
             None => {
-                self.column_number = 0;
+                return;
             }
         }
         self.row_number = min(self.row_number + 1, self.lines_text_editor.length());
@@ -169,6 +169,9 @@ impl<T: TextRepresentation> App<T> {
         self.index = length_upto_non_inclusive_current_row + self.column_number + self.row_number;
     }
     fn delete_char(&mut self) {
+        if self.column_number == 0 && self.row_number == 0 {
+            return;
+        }
         let final_index = self
             .text_representation
             .delete(1, self.index.saturating_sub(1));
@@ -179,8 +182,6 @@ impl<T: TextRepresentation> App<T> {
                 .index(self.row_number)
                 .unwrap_or_default();
             self.execute_line_command(MergeLineCommand::new(self.row_number, count_to_offset));
-        } else if self.column_number == 0 && self.row_number == 0 {
-            return;
         } else {
             self.execute_line_command(RemoveFromLineCommand::new(
                 self.row_number,
@@ -276,19 +277,10 @@ impl<T: TextRepresentation> App<T> {
                 .unwrap_or_default()
         {
             if self.lines_text_editor.index(self.row_number + 1).is_some() {
-                self.index = final_index;
                 self.row_number += 1;
                 self.column_number = 0;
-            } else {
-                let value = self
-                    .lines_text_editor
-                    .index(self.row_number)
-                    .unwrap_or_default();
-                if value == 0 {
-                    return;
-                }
-                self.jump_to_new_line();
             }
+            self.index = final_index;
         } else {
             self.index = final_index;
             let cursor_moved_right = self.column_number.saturating_add(1);

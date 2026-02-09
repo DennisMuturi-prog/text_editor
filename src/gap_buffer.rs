@@ -614,19 +614,9 @@ impl LinesGapBuffer {
         if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
             return None;
         }
-
-        if index < self.starting_of_gap {
-            let removed_line = self.remove_item(index)?;
-            self.increase_upper_line(index - 1, removed_line.line());
-            Some(())
-        } else {
-            let index_offset = index - self.starting_of_gap + 1;
-            let new_index = self.ending_of_gap + index_offset;
-            let removed_line = self.remove_item(new_index)?;
-            self.increase_upper_line(new_index - 1, removed_line.line());
-
-            Some(())
-        }
+        let removed_line = self.remove_item(index)?;
+        self.increase_upper_line(index - 1, removed_line.line());
+        Some(())
     }
 
     fn make_a_landmark(&mut self, index: usize, offset: usize) -> Option<()> {

@@ -96,7 +96,11 @@ impl TextRepresentation for Rope {
     }
     fn display_structure(&self) {
         let file_name = "tree.txt";
-        let file = File::options().write(true).open(file_name).unwrap();
+        let file = File::options()
+            .write(true)
+            .truncate(true)
+            .open(file_name)
+            .unwrap();
 
         // Write out the tree to the file
         if let Some(ref node) = self.rope {
