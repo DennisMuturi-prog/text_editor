@@ -183,11 +183,14 @@ impl<T: TextRepresentation> App<T> {
                 .unwrap_or_default();
             self.execute_line_command(MergeLineCommand::new(self.row_number, count_to_offset));
         } else {
+            let (starting, ending, should_offset) = self
+                .lines_text_editor
+                .find_offsets_for_line(self.row_number);
             self.execute_line_command(RemoveFromLineCommand::new(
                 self.row_number,
                 1,
-                self.lines_text_editor
-                    .find_offsets_for_line(self.row_number),
+                (starting, ending),
+                should_offset,
             ));
         }
 
@@ -204,12 +207,14 @@ impl<T: TextRepresentation> App<T> {
         let content_to_be_logged = format!("bounds are {} {}", offsets.0, offsets.1);
 
         fs::write("log.txt", content_to_be_logged).unwrap();
-
+        let (starting, ending, should_offset) = self
+            .lines_text_editor
+            .find_offsets_for_line(self.row_number);
         self.execute_line_command(InsertIntoLineCommand::new(
             self.row_number,
             1,
-            self.lines_text_editor
-                .find_offsets_for_line(self.row_number),
+            (starting, ending),
+            should_offset,
         ));
         self.move_cursor_right(final_index);
     }
@@ -221,11 +226,14 @@ impl<T: TextRepresentation> App<T> {
     fn move_right_due_to_paste(&mut self, length: usize, final_index: usize) {
         self.index = final_index;
         self.column_number += length;
+        let (starting, ending, should_offset) = self
+            .lines_text_editor
+            .find_offsets_for_line(self.row_number);
         self.execute_line_command(InsertIntoLineCommand::new(
             self.row_number,
             length,
-            self.lines_text_editor
-                .find_offsets_for_line(self.row_number),
+            (starting, ending),
+            should_offset,
         ));
     }
 
@@ -666,6 +674,9 @@ impl TextEditorLine {
 
     pub fn line(&self) -> &str {
         &self.line
+    }
+    pub fn clear_line(&mut self) {
+        self.line.clear();
     }
     pub fn split_line(&mut self, cut_position: usize) -> String {
         let full_string = self.line.graphemes(true);

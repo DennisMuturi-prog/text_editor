@@ -293,66 +293,43 @@ impl TextEditorLineCommand for MergeLineCommand {
             .split_a_line(self.index, self.content_merged_len);
     }
 }
-pub struct InsertIntoLineCommand {
-    index: usize,
-    initial_offsets: (usize, usize),
-    content_len_added: usize,
-}
-impl InsertIntoLineCommand {
-    pub fn new(index: usize, content_len_added: usize, initial_offsets: (usize, usize)) -> Self {
-        Self {
-            index,
-            content_len_added,
-            initial_offsets,
-        }
-    }
-}
-
-impl TextEditorLineCommand for InsertIntoLineCommand {
-    fn execute(&self, line_command_ctx: LineCommandContext) {
-        line_command_ctx.text_editor_lines.change_line(
-            self.index,
-            (
-                self.initial_offsets.0,
-                self.initial_offsets.1 + self.content_len_added,
-            ),
-            line_command_ctx.text_representation,
-        );
-    }
-
-    fn undo(&self, line_command_ctx: LineCommandContext) {
-        line_command_ctx.text_editor_lines.change_line(
-            self.index,
-            self.initial_offsets,
-            line_command_ctx.text_representation,
-        );
-    }
-}
 pub struct RemoveFromLineCommand {
     index: usize,
     initial_offsets: (usize, usize),
     content_len_removed: usize,
+    should_offset: bool,
 }
 impl RemoveFromLineCommand {
-    pub fn new(index: usize, content_len_removed: usize, initial_offsets: (usize, usize)) -> Self {
+    pub fn new(
+        index: usize,
+        content_len_removed: usize,
+        initial_offsets: (usize, usize),
+        should_offset: bool,
+    ) -> Self {
         Self {
             index,
             content_len_removed,
             initial_offsets,
+            should_offset,
         }
     }
 }
 
 impl TextEditorLineCommand for RemoveFromLineCommand {
     fn execute(&self, line_command_ctx: LineCommandContext) {
+        let bounds = {
+            if self.should_offset {
+                (
+                    self.initial_offsets.0,
+                    self.initial_offsets.1 - self.content_len_removed,
+                )
+            } else {
+                self.initial_offsets
+            }
+        };
         line_command_ctx.text_editor_lines.change_line(
             self.index,
-            (
-                self.initial_offsets.0,
-                self.initial_offsets
-                    .1
-                    .saturating_sub(self.content_len_removed),
-            ),
+            bounds,
             line_command_ctx.text_representation,
         );
     }
@@ -363,6 +340,59 @@ impl TextEditorLineCommand for RemoveFromLineCommand {
             self.initial_offsets,
             line_command_ctx.text_representation,
         );
+    }
+}
+pub struct InsertIntoLineCommand {
+    index: usize,
+    initial_offsets: (usize, usize),
+    content_len_added: usize,
+    should_offset: bool,
+}
+impl InsertIntoLineCommand {
+    pub fn new(
+        index: usize,
+        content_len_added: usize,
+        initial_offsets: (usize, usize),
+        should_offset: bool,
+    ) -> Self {
+        Self {
+            index,
+            content_len_added,
+            initial_offsets,
+            should_offset,
+        }
+    }
+}
+
+impl TextEditorLineCommand for InsertIntoLineCommand {
+    fn execute(&self, line_command_ctx: LineCommandContext) {
+        let bounds = {
+            if self.should_offset {
+                (
+                    self.initial_offsets.0,
+                    self.initial_offsets.1 + self.content_len_added,
+                )
+            } else {
+                self.initial_offsets
+            }
+        };
+        line_command_ctx.text_editor_lines.change_line(
+            self.index,
+            bounds,
+            line_command_ctx.text_representation,
+        );
+    }
+
+    fn undo(&self, line_command_ctx: LineCommandContext) {
+        if self.should_offset {
+            line_command_ctx.text_editor_lines.change_line(
+                self.index,
+                self.initial_offsets,
+                line_command_ctx.text_representation,
+            );
+        } else {
+            line_command_ctx.text_editor_lines.clear(self.index);
+        }
     }
 }
 pub struct LineCommandContext<'a> {
