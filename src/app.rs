@@ -33,6 +33,7 @@ pub struct App<T: TextRepresentation> {
     window_height: usize,
     window_width: usize,
     lines_text_editor: LinesGapBuffer,
+    wrapping: bool,
 }
 #[derive(Default)]
 enum Mode {
@@ -44,7 +45,7 @@ enum Mode {
 
 impl<T: TextRepresentation> App<T> {
     pub fn new(starting_string: String, text_representation: T, initial_width: usize) -> Self {
-        let lines_text_editor = LinesGapBuffer::new(&starting_string, initial_width, 10);
+        let lines_text_editor = LinesGapBuffer::new(&starting_string, initial_width);
 
         Self {
             text_representation,
@@ -60,6 +61,7 @@ impl<T: TextRepresentation> App<T> {
             redo_line_commands: vec![],
             exit: false,
             mode: Mode::default(),
+            wrapping: true,
         }
     }
     fn execute_line_command<C: TextEditorLineCommand + 'static>(&mut self, command: C) {
@@ -535,11 +537,7 @@ pub fn get_line_widths(content: &str) -> (Vec<usize>, usize, usize) {
     }
     (lines_widths, lines_counts / 2, (lines_counts * 2) - 1)
 }
-pub fn generate_lines(
-    content: &str,
-    width: usize,
-    landmark_width: usize,
-) -> (Vec<TextEditorLine>, Vec<usize>, usize, usize) {
+pub fn generate_lines(content: &str, width: usize) -> (Vec<TextEditorLine>, usize, usize) {
     let lines: Vec<&str> = content.lines().collect();
     let lines_count = lines.len();
     let mut my_lines = Vec::with_capacity(lines_count * 3);
@@ -547,8 +545,7 @@ pub fn generate_lines(
         if item.len() <= width {
             my_lines.push(TextEditorLine {
                 line: item.to_string(),
-                type_of_line: TypeOfLine::Parent,
-                land_mark_offset: None,
+                type_of_line: TypeOfLine::Independent,
             });
         } else {
             let graphemes_in_word = item.graphemes(true);
@@ -558,7 +555,6 @@ pub fn generate_lines(
                 TextEditorLine {
                     line: String::new(),
                     type_of_line: TypeOfLine::Parent,
-                    land_mark_offset: None
                 };
                 line_count
             ];
@@ -568,9 +564,12 @@ pub fn generate_lines(
                     .line
                     .push_str(letter);
             }
-            for i in 1..lines_in_string.len() {
+            for i in 1..=lines_in_string.len() {
                 lines_in_string[i].type_of_line = TypeOfLine::Child;
             }
+            let last_index = lines_in_string.len().saturating_sub(1);
+
+            lines_in_string[last_index].type_of_line = TypeOfLine::Terminator;
             my_lines.extend(lines_in_string.into_iter());
         }
     }
@@ -580,35 +579,19 @@ pub fn generate_lines(
     for _ in 0..lines_count {
         my_lines.push(TextEditorLine::default());
     }
-    let mut sum = 0;
-    let mut landmarks_positions = Vec::new();
-    for (index, line) in my_lines.iter_mut().take(lines_count).enumerate() {
-        sum += line.get_line_length();
 
-        if index % landmark_width == 0 {
-            line.land_mark_offset = Some(sum);
-            landmarks_positions.push(index);
-            sum = 0;
-        }
-    }
-
-    (
-        my_lines,
-        landmarks_positions,
-        starting_of_gap,
-        ending_of_gap,
-    )
+    (my_lines, starting_of_gap, ending_of_gap)
 }
 #[derive(Clone, Default, Debug)]
 pub struct TextEditorLine {
     line: String,
     type_of_line: TypeOfLine,
-    land_mark_offset: Option<usize>,
 }
 impl TextEditorLine {
-    pub fn new(line: String) -> Self {
+    pub fn new(line: String, type_of_line: TypeOfLine) -> Self {
         Self {
             line,
+            type_of_line,
             ..TextEditorLine::default()
         }
     }
@@ -617,25 +600,9 @@ impl TextEditorLine {
         bounds: (usize, usize),
         text_representation: &dyn TextRepresentation,
     ) {
-        let old_line_len = self.line.graphemes(true).count();
         text_representation.collect_substring(&mut self.line, bounds);
-        // println!(
-        //     "bounds are {} and {} ,content is {}",
-        //     bounds.0, bounds.1, self.line
-        // );
-        let new_line_len = self.line.graphemes(true).count();
-        if new_line_len > old_line_len
-            && let Some(ref mut offset) = self.land_mark_offset
-        {
-            *offset += new_line_len - old_line_len;
-        } else if let Some(ref mut offset) = self.land_mark_offset {
-            *offset = offset.saturating_sub(old_line_len - new_line_len);
-        }
     }
     pub fn add_to_line(&mut self, new_content: &str) {
-        if let Some(ref mut offset) = self.land_mark_offset {
-            *offset += new_content.graphemes(true).count();
-        }
         self.line.push_str(new_content);
     }
     pub fn get_line_length(&self) -> usize {
@@ -643,32 +610,10 @@ impl TextEditorLine {
     }
     pub fn get_line_length_for_offset(&self) -> usize {
         match self.type_of_line {
-            TypeOfLine::Parent => self.line.len() + 1,
+            TypeOfLine::Independent => self.line.len() + 1,
+            TypeOfLine::Parent => self.line.len(),
             TypeOfLine::Child => self.line.len(),
-        }
-    }
-    pub fn landmark_offset(&self) -> Option<usize> {
-        self.land_mark_offset
-    }
-    pub fn make_a_landmark(&mut self, offset: usize) {
-        self.land_mark_offset = Some(offset);
-    }
-    pub fn decrease_offset(&mut self, decrease: usize) -> Option<()> {
-        match self.land_mark_offset {
-            Some(ref mut offset) => {
-                *offset = offset.saturating_sub(decrease);
-                Some(())
-            }
-            None => None,
-        }
-    }
-    pub fn increase_offset(&mut self, increase: usize) -> Option<()> {
-        match self.land_mark_offset {
-            Some(ref mut offset) => {
-                *offset += increase;
-                Some(())
-            }
-            None => None,
+            TypeOfLine::Terminator => self.line.len() + 1,
         }
     }
 
@@ -677,6 +622,14 @@ impl TextEditorLine {
     }
     pub fn clear_line(&mut self) {
         self.line.clear();
+    }
+    pub fn is_parent_or_independent(&self) -> bool {
+        match self.type_of_line {
+            TypeOfLine::Parent => true,
+            TypeOfLine::Child => false,
+            TypeOfLine::Independent => true,
+            TypeOfLine::Terminator => false,
+        }
     }
     pub fn split_line(&mut self, cut_position: usize) -> String {
         let full_string = self.line.graphemes(true);
@@ -689,16 +642,16 @@ impl TextEditorLine {
                 second_part.push_str(line);
             }
         }
-        if let Some(ref mut offset) = self.land_mark_offset {
-            *offset -= offset.saturating_sub(second_part.graphemes(true).count());
-        }
+
         self.line = first_part;
         second_part
     }
 }
 #[derive(Clone, Default, Debug)]
-enum TypeOfLine {
-    #[default]
+pub enum TypeOfLine {
     Parent,
     Child,
+    #[default]
+    Independent,
+    Terminator,
 }

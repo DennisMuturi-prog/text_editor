@@ -8,12 +8,12 @@ the line gap buffer
         ),
     },
     TextEditorLine {
-        line: "sdsdsdfdfd fddfd dfdfdfd dfdfddfdfd dfdfd dfdfdfdfd fddf",
+        line: "sdsdsd dfdfdfdfdf dffdf dfd",
         type_of_line: Parent,
         land_mark_offset: None,
     },
     TextEditorLine {
-        line: "fdfdf",
+        line: "dfdfdfdfdfdfdfdf",
         type_of_line: Parent,
         land_mark_offset: None,
     },
@@ -52,4 +52,4 @@ the line gap buffer
         type_of_line: Parent,
         land_mark_offset: None,
     },
-] and the start is 2 and ending is 6
+] and the start is 3 and ending is 6

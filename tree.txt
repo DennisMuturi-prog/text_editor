@@ -1,66 +1,63 @@
-internal weight:47 depth:6 l:77
-├─ internal weight:26 depth:5 l:47
-│  ├─ internal weight:13 depth:4 l:26
-│  │  ├─ internal weight:7 depth:3 l:13
-│  │  │  ├─ internal weight:4 depth:2 l:7
-│  │  │  │  ├─ internal weight:2 depth:1 l:4
-│  │  │  │  │  ├─ leaf :'
+internal weight:41 depth:8 l:65
+├─ internal weight:40 depth:7 l:41
+│  ├─ internal weight:39 depth:6 l:40
+│  │  ├─ internal weight:26 depth:5 l:39
+│  │  │  ├─ internal weight:13 depth:4 l:26
+│  │  │  │  ├─ internal weight:7 depth:3 l:13
+│  │  │  │  │  ├─ internal weight:4 depth:2 l:7
+│  │  │  │  │  │  ├─ internal weight:2 depth:1 l:4
+│  │  │  │  │  │  │  ├─ leaf :'
 s' weight:2 depth:0 length:2
-│  │  │  │  │  └─ leaf :'ds' weight:2 depth:0 length:2
-│  │  │  │  └─ leaf :'dsd' weight:3 depth:0 length:3
-│  │  │  └─ internal weight:3 depth:1 l:6
-│  │  │     ├─ leaf :'fdf' weight:3 depth:0 length:3
-│  │  │     └─ leaf :'d f' weight:3 depth:0 length:3
-│  │  └─ internal weight:6 depth:3 l:13
-│  │     ├─ internal weight:3 depth:1 l:6
-│  │     │  ├─ leaf :'ddf' weight:3 depth:0 length:3
-│  │     │  └─ leaf :'d d' weight:3 depth:0 length:3
-│  │     └─ internal weight:3 depth:2 l:7
-│  │        ├─ leaf :'fdf' weight:3 depth:0 length:3
-│  │        └─ internal weight:2 depth:1 l:4
-│  │           ├─ leaf :'df' weight:2 depth:0 length:2
-│  │           └─ leaf :'d ' weight:2 depth:0 length:2
-│  └─ internal weight:8 depth:4 l:21
-│     ├─ internal weight:4 depth:2 l:8
-│     │  ├─ internal weight:2 depth:1 l:4
-│     │  │  ├─ leaf :'df' weight:2 depth:0 length:2
-│     │  │  └─ leaf :'df' weight:2 depth:0 length:2
-│     │  └─ internal weight:2 depth:1 l:4
-│     │     ├─ leaf :'dd' weight:2 depth:0 length:2
-│     │     └─ leaf :'fd' weight:2 depth:0 length:2
-│     └─ internal weight:7 depth:3 l:13
-│        ├─ internal weight:4 depth:2 l:7
-│        │  ├─ internal weight:2 depth:1 l:4
-│        │  │  ├─ leaf :'fd' weight:2 depth:0 length:2
-│        │  │  └─ leaf :' d' weight:2 depth:0 length:2
-│        │  └─ leaf :'fdf' weight:3 depth:0 length:3
-│        └─ internal weight:3 depth:1 l:6
-│           ├─ leaf :'d d' weight:3 depth:0 length:3
-│           └─ leaf :'fdf' weight:3 depth:0 length:3
-└─ internal weight:27 depth:5 l:30
-   ├─ internal weight:14 depth:4 l:27
-   │  ├─ internal weight:7 depth:3 l:14
-   │  │  ├─ internal weight:3 depth:2 l:7
-   │  │  │  ├─ leaf :'dfd' weight:3 depth:0 length:3
-   │  │  │  └─ internal weight:2 depth:1 l:4
-   │  │  │     ├─ leaf :'fd' weight:2 depth:0 length:2
-   │  │  │     └─ leaf :' f' weight:2 depth:0 length:2
-   │  │  └─ internal weight:4 depth:2 l:7
-   │  │     ├─ internal weight:2 depth:1 l:4
-   │  │     │  ├─ leaf :'dd' weight:2 depth:0 length:2
-   │  │     │  └─ leaf :'f
-' weight:2 depth:0 length:2
-   │  │     └─ leaf :'dsd' weight:3 depth:0 length:3
-   │  └─ internal weight:7 depth:3 l:13
-   │     ├─ internal weight:3 depth:2 l:7
-   │     │  ├─ leaf :'sd
+│  │  │  │  │  │  │  └─ leaf :'ds' weight:2 depth:0 length:2
+│  │  │  │  │  │  └─ leaf :'dsd' weight:3 depth:0 length:3
+│  │  │  │  │  └─ internal weight:3 depth:1 l:6
+│  │  │  │  │     ├─ leaf :' df' weight:3 depth:0 length:3
+│  │  │  │  │     └─ leaf :'dfd' weight:3 depth:0 length:3
+│  │  │  │  └─ internal weight:6 depth:3 l:13
+│  │  │  │     ├─ internal weight:3 depth:1 l:6
+│  │  │  │     │  ├─ leaf :'fdf' weight:3 depth:0 length:3
+│  │  │  │     │  └─ leaf :'df ' weight:3 depth:0 length:3
+│  │  │  │     └─ internal weight:3 depth:2 l:7
+│  │  │  │        ├─ leaf :'dff' weight:3 depth:0 length:3
+│  │  │  │        └─ internal weight:2 depth:1 l:4
+│  │  │  │           ├─ leaf :'df' weight:2 depth:0 length:2
+│  │  │  │           └─ leaf :' d' weight:2 depth:0 length:2
+│  │  │  └─ internal weight:7 depth:3 l:13
+│  │  │     ├─ internal weight:3 depth:2 l:7
+│  │  │     │  ├─ leaf :'fd
 ' weight:3 depth:0 length:3
-   │     │  └─ internal weight:2 depth:1 l:4
-   │     │     ├─ leaf :'sd' weight:2 depth:0 length:2
-   │     │     └─ leaf :'sd' weight:2 depth:0 length:2
-   │     └─ internal weight:3 depth:1 l:6
-   │        ├─ leaf :'sd
+│  │  │     │  └─ internal weight:2 depth:1 l:4
+│  │  │     │     ├─ leaf :'df' weight:2 depth:0 length:2
+│  │  │     │     └─ leaf :'df' weight:2 depth:0 length:2
+│  │  │     └─ internal weight:3 depth:1 l:6
+│  │  │        ├─ leaf :'dfd' weight:3 depth:0 length:3
+│  │  │        └─ leaf :'fdf' weight:3 depth:0 length:3
+│  │  └─ internal weight:1 depth:5 l:1
+│  │     └─ internal weight:1 depth:1 l:1
+│  │        └─ leaf :'d' weight:1 depth:0 length:1
+│  └─ internal weight:1 depth:5 l:1
+│     └─ internal weight:1 depth:1 l:1
+│        └─ leaf :'f' weight:1 depth:0 length:1
+└─ internal weight:4 depth:5 l:24
+   ├─ internal weight:1 depth:1 l:4
+   │  ├─ leaf :'d' weight:1 depth:0 length:1
+   │  └─ leaf :'fdf' weight:3 depth:0 length:3
+   └─ internal weight:14 depth:4 l:20
+      ├─ internal weight:7 depth:3 l:14
+      │  ├─ internal weight:4 depth:2 l:7
+      │  │  ├─ internal weight:2 depth:1 l:4
+      │  │  │  ├─ leaf :'
+d' weight:2 depth:0 length:2
+      │  │  │  └─ leaf :'sd' weight:2 depth:0 length:2
+      │  │  └─ leaf :'sd
 ' weight:3 depth:0 length:3
-   │        └─ leaf :'sds' weight:3 depth:0 length:3
-   └─ leaf :'ds
+      │  └─ internal weight:4 depth:2 l:7
+      │     ├─ internal weight:2 depth:1 l:4
+      │     │  ├─ leaf :'sd' weight:2 depth:0 length:2
+      │     │  └─ leaf :'sd' weight:2 depth:0 length:2
+      │     └─ leaf :'sd
+' weight:3 depth:0 length:3
+      └─ internal weight:3 depth:1 l:6
+         ├─ leaf :'sds' weight:3 depth:0 length:3
+         └─ leaf :'ds
 ' weight:3 depth:0 length:3
