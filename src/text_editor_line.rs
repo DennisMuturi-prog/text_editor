@@ -28,6 +28,7 @@ impl TextEditorLine {
             TypeOfLine::Independent => self.line.len() + 1,
             TypeOfLine::Child => self.line.len(),
             TypeOfLine::Terminator => self.line.len() + 1,
+            TypeOfLine::Parent => self.line.len(),
         }
     }
 
@@ -66,6 +67,7 @@ impl TextEditorLine {
 }
 #[derive(Clone, Default, Debug)]
 pub enum TypeOfLine {
+    Parent,
     Child,
     #[default]
     Independent,
@@ -100,7 +102,7 @@ pub fn generate_lines(content: &str, width: usize) -> (Vec<TextEditorLine>, usiz
             }
 
             let last_index = lines_in_string.len().saturating_sub(1);
-
+            lines_in_string[0].type_of_line = TypeOfLine::Parent;
             lines_in_string[last_index].type_of_line = TypeOfLine::Terminator;
             my_lines.extend(lines_in_string.into_iter());
         }

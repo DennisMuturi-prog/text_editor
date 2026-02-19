@@ -543,13 +543,16 @@ impl LinesGapBuffer {
         }
         if index < self.starting_of_gap {
             self.buffer[index].change_line(bounds, text_representation);
-            Some(())
         } else {
             let index_offset = index - self.starting_of_gap + 1;
             let new_index = self.ending_of_gap + index_offset;
             self.buffer[new_index].change_line(bounds, text_representation);
-            Some(())
         }
+        if self.index(index).unwrap_or_default() > self.window_width {
+            self.split_a_line_due_to_word_wrap(index, self.window_width);
+        }
+
+        Some(())
     }
     fn is_independent(&self, index: usize) -> bool {
         if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
@@ -580,6 +583,115 @@ impl LinesGapBuffer {
     pub fn split_a_line_with_wrapping(&mut self, index: usize, cut_position: usize) -> Option<()> {
         self.split_a_line(index, cut_position)
     }
+    pub fn split_a_line_due_to_word_wrap(
+        &mut self,
+        index: usize,
+        cut_position: usize,
+    ) -> Option<()> {
+        if self.ending_of_gap < self.starting_of_gap {
+            self.resize();
+        }
+        if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
+            return None;
+        }
+
+        if index < self.starting_of_gap {
+            let cut_content = self.buffer[index].split_line(cut_position);
+            let current_line_type = self.buffer[index].type_of_line();
+            match current_line_type {
+                TypeOfLine::Parent => {
+                    match self.increase_line(index + 1, &cut_content) {
+                        Some(_) => {
+                            if self.index(index + 1).unwrap_or_default() > self.window_width {
+                                self.split_a_line_due_to_word_wrap(index + 1, self.window_width);
+                            }
+                        }
+                        None => {
+                            self.add_item_with_content(
+                                index + 1,
+                                cut_content,
+                                TypeOfLine::Terminator,
+                            );
+                        }
+                    };
+                }
+                TypeOfLine::Child => {
+                    match self.increase_line(index + 1, &cut_content) {
+                        Some(_) => {
+                            if self.index(index + 1).unwrap_or_default() > self.window_width {
+                                self.split_a_line_due_to_word_wrap(index + 1, self.window_width);
+                            }
+                        }
+                        None => {
+                            self.add_item_with_content(
+                                index + 1,
+                                cut_content,
+                                TypeOfLine::Terminator,
+                            );
+                        }
+                    };
+                }
+                TypeOfLine::Terminator => {
+                    self.buffer[index].set_type_of_line(TypeOfLine::Child);
+                    self.add_item_with_content(index + 1, cut_content, TypeOfLine::Terminator);
+                }
+                TypeOfLine::Independent => {
+                    self.buffer[index].set_type_of_line(TypeOfLine::Parent);
+                    self.add_item_with_content(index + 1, cut_content, TypeOfLine::Terminator);
+                }
+            }
+            Some(())
+        } else {
+            let index_offset = index - self.starting_of_gap + 1;
+            let new_index = self.ending_of_gap + index_offset;
+            let cut_content = self.buffer[new_index].split_line(cut_position);
+            let current_line_type = self.buffer[new_index].type_of_line();
+            match current_line_type {
+                TypeOfLine::Parent => {
+                    match self.increase_line(index + 1, &cut_content) {
+                        Some(_) => {
+                            if self.index(index + 1).unwrap_or_default() > self.window_width {
+                                self.split_a_line_due_to_word_wrap(index + 1, self.window_width);
+                            }
+                        }
+                        None => {
+                            self.add_item_with_content(
+                                index + 1,
+                                cut_content,
+                                TypeOfLine::Terminator,
+                            );
+                        }
+                    };
+                }
+                TypeOfLine::Child => {
+                    match self.increase_line(index + 1, &cut_content) {
+                        Some(_) => {
+                            if self.index(index + 1).unwrap_or_default() > self.window_width {
+                                self.split_a_line_due_to_word_wrap(index + 1, self.window_width);
+                            }
+                        }
+                        None => {
+                            self.add_item_with_content(
+                                index + 1,
+                                cut_content,
+                                TypeOfLine::Terminator,
+                            );
+                        }
+                    };
+                }
+                TypeOfLine::Terminator => {
+                    self.buffer[new_index].set_type_of_line(TypeOfLine::Child);
+                    self.add_item_with_content(index + 1, cut_content, TypeOfLine::Terminator);
+                }
+                TypeOfLine::Independent => {
+                    self.buffer[new_index].set_type_of_line(TypeOfLine::Parent);
+                    self.add_item_with_content(index + 1, cut_content, TypeOfLine::Terminator);
+                }
+            }
+
+            Some(())
+        }
+    }
     pub fn split_a_line(&mut self, index: usize, cut_position: usize) -> Option<()> {
         if self.ending_of_gap < self.starting_of_gap {
             self.resize();
@@ -590,89 +702,90 @@ impl LinesGapBuffer {
 
         if index < self.starting_of_gap {
             let cut_content = self.buffer[index].split_line(cut_position);
-            let previous_line_type = if index == 0 {
-                &TypeOfLine::Independent
-            } else {
-                self.buffer[index - 1].type_of_line()
-            };
             let current_line_type = self.buffer[index].type_of_line();
-            if matches!(current_line_type, TypeOfLine::Child)
-                && matches!(previous_line_type, TypeOfLine::Child)
-            {
-                self.buffer[index].set_type_of_line(TypeOfLine::Terminator);
-                match self.increase_line(index + 1, &cut_content) {
-                    Some(_) => {
-                        if self.index(index + 1).unwrap_or_default() > self.window_width {
-                            self.split_a_line(index + 1, self.window_width);
+            match current_line_type {
+                TypeOfLine::Parent => {
+                    self.buffer[index].set_type_of_line(TypeOfLine::Independent);
+                    match self.increase_line(index + 1, &cut_content) {
+                        Some(_) => {
+                            if self.index(index + 1).unwrap_or_default() > self.window_width {
+                                self.split_a_line_due_to_word_wrap(index + 1, self.window_width);
+                            }
                         }
-                    }
-                    None => {
-                        self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
-                    }
-                };
-            } else if matches!(current_line_type, TypeOfLine::Child)
-                && (matches!(previous_line_type, TypeOfLine::Independent)
-                    || matches!(previous_line_type, TypeOfLine::Terminator))
-            {
-                self.buffer[index].set_type_of_line(TypeOfLine::Independent);
-                match self.increase_line(index + 1, &cut_content) {
-                    Some(_) => {
-                        if self.index(index + 1).unwrap_or_default() > self.window_width {
-                            self.split_a_line(index + 1, self.window_width);
+                        None => {
+                            self.add_item_with_content(
+                                index + 1,
+                                cut_content,
+                                TypeOfLine::Independent,
+                            );
                         }
-                    }
-                    None => {
-                        self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
-                    }
-                };
-            } else {
-                self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
+                    };
+                }
+                TypeOfLine::Child => {
+                    self.buffer[index].set_type_of_line(TypeOfLine::Terminator);
+                    match self.increase_line(index + 1, &cut_content) {
+                        Some(_) => {
+                            if self.index(index + 1).unwrap_or_default() > self.window_width {
+                                self.split_a_line_due_to_word_wrap(index + 1, self.window_width);
+                            }
+                        }
+                        None => {
+                            self.add_item_with_content(
+                                index + 1,
+                                cut_content,
+                                TypeOfLine::Independent,
+                            );
+                        }
+                    };
+                }
+                _ => {
+                    self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
+                }
             }
             Some(())
         } else {
             let index_offset = index - self.starting_of_gap + 1;
             let new_index = self.ending_of_gap + index_offset;
             let cut_content = self.buffer[new_index].split_line(cut_position);
-            let previous_line_type = if index == 0 {
-                &TypeOfLine::Independent
-            } else {
-                match self.get_line_type(index - 1) {
-                    Some(line_type) => line_type,
-                    None => &TypeOfLine::Independent,
-                }
-            };
             let current_line_type = self.buffer[new_index].type_of_line();
-            if matches!(current_line_type, TypeOfLine::Child)
-                && matches!(previous_line_type, TypeOfLine::Child)
-            {
-                self.buffer[new_index].set_type_of_line(TypeOfLine::Terminator);
-                match self.increase_line(index + 1, &cut_content) {
-                    Some(_) => {
-                        if self.index(index + 1).unwrap_or_default() > self.window_width {
-                            self.split_a_line(index + 1, self.window_width);
+            match current_line_type {
+                TypeOfLine::Parent => {
+                    self.buffer[new_index].set_type_of_line(TypeOfLine::Independent);
+                    match self.increase_line(index + 1, &cut_content) {
+                        Some(_) => {
+                            if self.index(index + 1).unwrap_or_default() > self.window_width {
+                                self.split_a_line_due_to_word_wrap(index + 1, self.window_width);
+                            }
                         }
-                    }
-                    None => {
-                        self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
-                    }
-                };
-            } else if matches!(current_line_type, TypeOfLine::Child)
-                && (matches!(previous_line_type, TypeOfLine::Independent)
-                    || matches!(previous_line_type, TypeOfLine::Terminator))
-            {
-                self.buffer[new_index].set_type_of_line(TypeOfLine::Independent);
-                match self.increase_line(index + 1, &cut_content) {
-                    Some(_) => {
-                        if self.index(index + 1).unwrap_or_default() > self.window_width {
-                            self.split_a_line(index + 1, self.window_width);
+                        None => {
+                            self.add_item_with_content(
+                                index + 1,
+                                cut_content,
+                                TypeOfLine::Independent,
+                            );
                         }
-                    }
-                    None => {
-                        self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
-                    }
-                };
-            } else {
-                self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
+                    };
+                }
+                TypeOfLine::Child => {
+                    self.buffer[new_index].set_type_of_line(TypeOfLine::Terminator);
+                    match self.increase_line(index + 1, &cut_content) {
+                        Some(_) => {
+                            if self.index(index + 1).unwrap_or_default() > self.window_width {
+                                self.split_a_line_due_to_word_wrap(index + 1, self.window_width);
+                            }
+                        }
+                        None => {
+                            self.add_item_with_content(
+                                index + 1,
+                                cut_content,
+                                TypeOfLine::Independent,
+                            );
+                        }
+                    };
+                }
+                _ => {
+                    self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
+                }
             }
 
             Some(())
@@ -688,7 +801,7 @@ impl LinesGapBuffer {
         let removed_line = self.remove_item(index)?;
         self.increase_line(index - 1, removed_line.line());
         if self.index(index - 1).unwrap_or_default() > self.window_width {
-            self.split_a_line(index - 1, self.window_width);
+            self.split_a_line_due_to_word_wrap(index - 1, self.window_width);
         }
         Some(())
     }
@@ -758,12 +871,29 @@ impl LinesGapBuffer {
         self.starting_of_gap
     }
     pub fn get_lines(&self) -> Vec<Line<'_>> {
+        let mut line_number = 1;
         let mut lines = Vec::new();
         for line in self.buffer.iter().take(self.starting_of_gap) {
-            lines.push(Line::raw(line.line()));
+            match line.type_of_line() {
+                TypeOfLine::Parent => {
+                    lines.push(Line::raw(format!("{} {}", line_number, line.line())));
+                    line_number += 1;
+                }
+                TypeOfLine::Child => {
+                    lines.push(Line::raw(line.line()));
+                }
+                TypeOfLine::Independent => {
+                    lines.push(Line::raw(format!("{} {}", line_number, line.line())));
+                    line_number += 1;
+                }
+                TypeOfLine::Terminator => {
+                    lines.push(Line::raw(line.line()));
+                }
+            }
         }
         for line in self.buffer.iter().skip(self.ending_of_gap + 1) {
-            lines.push(Line::raw(line.line()));
+            lines.push(Line::raw(format!("{} {}", line_number, line.line())));
+            line_number += 1;
         }
         lines
     }
