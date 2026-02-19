@@ -1,7 +1,8 @@
 use ratatui::text::Line;
 
 use crate::{
-    app::{TextEditorLine, TypeOfLine, generate_lines, get_line_widths},
+    app::get_line_widths,
+    text_editor_line::{TextEditorLine, TypeOfLine, generate_lines},
     text_representation::TextRepresentation,
 };
 #[derive(Default)]
@@ -318,15 +319,17 @@ pub struct LinesGapBuffer {
     buffer: Vec<TextEditorLine>,
     starting_of_gap: usize,
     ending_of_gap: usize,
+    window_width: usize,
 }
 
 impl LinesGapBuffer {
-    pub fn new(content: &str, width: usize) -> Self {
-        let (buffer, starting_of_gap, ending_of_gap) = generate_lines(content, width);
+    pub fn new(content: &str, window_width: usize) -> Self {
+        let (buffer, starting_of_gap, ending_of_gap) = generate_lines(content, window_width);
         Self {
             buffer,
             starting_of_gap,
             ending_of_gap,
+            window_width,
         }
     }
 
@@ -548,21 +551,34 @@ impl LinesGapBuffer {
             Some(())
         }
     }
-    fn is_parent_or_independent(&self, index: usize) -> bool {
+    fn is_independent(&self, index: usize) -> bool {
         if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
             return true;
         }
 
         if index < self.starting_of_gap {
-            self.buffer[index].is_parent_or_independent()
+            self.buffer[index].is_independent()
         } else {
             let offset = index - self.starting_of_gap + 1;
             let new_index = self.ending_of_gap + offset;
-            self.buffer[new_index].is_parent_or_independent()
+            self.buffer[new_index].is_independent()
+        }
+    }
+    fn get_line_type(&self, index: usize) -> Option<&TypeOfLine> {
+        if index >= self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1) {
+            return None;
+        }
+
+        if index < self.starting_of_gap {
+            Some(self.buffer[index].type_of_line())
+        } else {
+            let offset = index - self.starting_of_gap + 1;
+            let new_index = self.ending_of_gap + offset;
+            Some(self.buffer[new_index].type_of_line())
         }
     }
     pub fn split_a_line_with_wrapping(&mut self, index: usize, cut_position: usize) -> Option<()> {
-        self.split_a_line(index, cut_position);
+        self.split_a_line(index, cut_position)
     }
     pub fn split_a_line(&mut self, index: usize, cut_position: usize) -> Option<()> {
         if self.ending_of_gap < self.starting_of_gap {
@@ -574,23 +590,55 @@ impl LinesGapBuffer {
 
         if index < self.starting_of_gap {
             let cut_content = self.buffer[index].split_line(cut_position);
-            let type_of_line = if self.is_parent_or_independent(index + 1) {
-                TypeOfLine::Terminator
+            let previous_line_type = if index == 0 {
+                &TypeOfLine::Independent
             } else {
-                TypeOfLine::Child
+                self.buffer[index - 1].type_of_line()
             };
-            self.add_item_with_content(index + 1, cut_content, type_of_line);
+            let current_line_type = self.buffer[index].type_of_line();
+            if matches!(current_line_type, TypeOfLine::Child)
+                && matches!(previous_line_type, TypeOfLine::Child)
+            {
+                self.buffer[index].set_type_of_line(TypeOfLine::Terminator);
+                self.add_item_with_content(index + 1, cut_content, TypeOfLine::Child);
+            } else if matches!(current_line_type, TypeOfLine::Child)
+                && (matches!(previous_line_type, TypeOfLine::Independent)
+                    || matches!(previous_line_type, TypeOfLine::Terminator))
+            {
+                self.buffer[index].set_type_of_line(TypeOfLine::Independent);
+                self.add_item_with_content(index + 1, cut_content, TypeOfLine::Child);
+            } else {
+                self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
+            }
             Some(())
         } else {
             let index_offset = index - self.starting_of_gap + 1;
             let new_index = self.ending_of_gap + index_offset;
             let cut_content = self.buffer[new_index].split_line(cut_position);
-            let type_of_line = if self.is_parent_or_independent(index + 1) {
-                TypeOfLine::Terminator
+            let previous_line_type = if index == 0 {
+                &TypeOfLine::Independent
             } else {
-                TypeOfLine::Child
+                match self.get_line_type(index - 1) {
+                    Some(line_type) => line_type,
+                    None => &TypeOfLine::Independent,
+                }
             };
-            self.add_item_with_content(index + 1, cut_content, type_of_line);
+            let current_line_type = self.buffer[new_index].type_of_line();
+            let mut new_line_type: TypeOfLine = TypeOfLine::Independent;
+            if matches!(current_line_type, TypeOfLine::Child)
+                && matches!(previous_line_type, TypeOfLine::Child)
+            {
+                self.buffer[new_index].set_type_of_line(TypeOfLine::Terminator);
+                self.add_item_with_content(index + 1, cut_content, TypeOfLine::Child);
+            } else if matches!(current_line_type, TypeOfLine::Child)
+                && (matches!(previous_line_type, TypeOfLine::Independent)
+                    || matches!(previous_line_type, TypeOfLine::Terminator))
+            {
+                self.buffer[new_index].set_type_of_line(TypeOfLine::Independent);
+                self.add_item_with_content(index + 1, cut_content, TypeOfLine::Child);
+            } else {
+                self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
+            }
 
             Some(())
         }
