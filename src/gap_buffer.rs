@@ -600,13 +600,31 @@ impl LinesGapBuffer {
                 && matches!(previous_line_type, TypeOfLine::Child)
             {
                 self.buffer[index].set_type_of_line(TypeOfLine::Terminator);
-                self.add_item_with_content(index + 1, cut_content, TypeOfLine::Child);
+                match self.increase_line(index + 1, &cut_content) {
+                    Some(_) => {
+                        if self.index(index + 1).unwrap_or_default() > self.window_width {
+                            self.split_a_line(index + 1, self.window_width);
+                        }
+                    }
+                    None => {
+                        self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
+                    }
+                };
             } else if matches!(current_line_type, TypeOfLine::Child)
                 && (matches!(previous_line_type, TypeOfLine::Independent)
                     || matches!(previous_line_type, TypeOfLine::Terminator))
             {
                 self.buffer[index].set_type_of_line(TypeOfLine::Independent);
-                self.add_item_with_content(index + 1, cut_content, TypeOfLine::Child);
+                match self.increase_line(index + 1, &cut_content) {
+                    Some(_) => {
+                        if self.index(index + 1).unwrap_or_default() > self.window_width {
+                            self.split_a_line(index + 1, self.window_width);
+                        }
+                    }
+                    None => {
+                        self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
+                    }
+                };
             } else {
                 self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
             }
@@ -624,18 +642,35 @@ impl LinesGapBuffer {
                 }
             };
             let current_line_type = self.buffer[new_index].type_of_line();
-            let mut new_line_type: TypeOfLine = TypeOfLine::Independent;
             if matches!(current_line_type, TypeOfLine::Child)
                 && matches!(previous_line_type, TypeOfLine::Child)
             {
                 self.buffer[new_index].set_type_of_line(TypeOfLine::Terminator);
-                self.add_item_with_content(index + 1, cut_content, TypeOfLine::Child);
+                match self.increase_line(index + 1, &cut_content) {
+                    Some(_) => {
+                        if self.index(index + 1).unwrap_or_default() > self.window_width {
+                            self.split_a_line(index + 1, self.window_width);
+                        }
+                    }
+                    None => {
+                        self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
+                    }
+                };
             } else if matches!(current_line_type, TypeOfLine::Child)
                 && (matches!(previous_line_type, TypeOfLine::Independent)
                     || matches!(previous_line_type, TypeOfLine::Terminator))
             {
                 self.buffer[new_index].set_type_of_line(TypeOfLine::Independent);
-                self.add_item_with_content(index + 1, cut_content, TypeOfLine::Child);
+                match self.increase_line(index + 1, &cut_content) {
+                    Some(_) => {
+                        if self.index(index + 1).unwrap_or_default() > self.window_width {
+                            self.split_a_line(index + 1, self.window_width);
+                        }
+                    }
+                    None => {
+                        self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
+                    }
+                };
             } else {
                 self.add_item_with_content(index + 1, cut_content, TypeOfLine::Independent);
             }
@@ -651,7 +686,10 @@ impl LinesGapBuffer {
             return None;
         }
         let removed_line = self.remove_item(index)?;
-        self.increase_upper_line(index - 1, removed_line.line());
+        self.increase_line(index - 1, removed_line.line());
+        if self.index(index - 1).unwrap_or_default() > self.window_width {
+            self.split_a_line(index - 1, self.window_width);
+        }
         Some(())
     }
 
@@ -697,7 +735,7 @@ impl LinesGapBuffer {
         Some(value_to_be_removed)
     }
 
-    fn increase_upper_line(&mut self, index: usize, content: &str) -> Option<()> {
+    fn increase_line(&mut self, index: usize, content: &str) -> Option<()> {
         if self.ending_of_gap < self.starting_of_gap {
             self.resize();
         }
