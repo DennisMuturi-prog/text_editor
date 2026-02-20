@@ -402,6 +402,48 @@ impl LinesGapBuffer {
         }
         (0, 0)
     }
+    pub fn find_where_rope_index_fits_for_current_page(
+        &self,
+        page_start: usize,
+        rope_index: usize,
+        page_index: usize,
+    ) -> (usize, usize) {
+        let mut local_index = rope_index as i32 - page_index as i32;
+        let starting_point = if page_start < self.starting_of_gap {
+            page_start
+        } else {
+            let distance_from_ending = page_start - self.starting_of_gap + 1;
+            self.ending_of_gap + distance_from_ending
+        };
+        for i in starting_point..self.starting_of_gap {
+            local_index -= (self.buffer[i].get_line_length_for_offset()) as i32;
+            if local_index <= 0 {
+                return (
+                    i,
+                    (self.buffer[i].get_line_length() - local_index.unsigned_abs() as usize),
+                );
+            }
+        }
+        let starting_point_after_gap = if starting_point < self.starting_of_gap {
+            self.ending_of_gap + 1
+        } else {
+            starting_point
+        };
+
+        let before_index = self.starting_of_gap;
+        for i in starting_point_after_gap..self.buffer.len() {
+            let after_index = i - self.ending_of_gap;
+            let final_index = before_index + after_index - 1;
+            local_index -= (self.buffer[i].get_line_length_for_offset()) as i32;
+            if local_index <= 0 {
+                return (
+                    final_index,
+                    (self.buffer[i].get_line_length() - local_index.unsigned_abs() as usize),
+                );
+            }
+        }
+        (0, 0)
+    }
     pub fn length_up_to_non_inclusive_index(&self, index: usize) -> usize {
         let mut index = index;
 
@@ -430,6 +472,51 @@ impl LinesGapBuffer {
             sum_before_gap + sum_after_gap
         }
     }
+    pub fn length_up_to_non_inclusive_index_for_current_page(
+        &self,
+        index: usize,
+        page_start: usize,
+        page_index: usize,
+    ) -> usize {
+        let starting_point = if page_start < self.starting_of_gap {
+            page_start
+        } else {
+            let distance_from_ending = page_start - self.starting_of_gap + 1;
+            self.ending_of_gap + distance_from_ending
+        };
+        let mut index = index;
+        let content_len = self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1);
+        if index >= content_len {
+            index = content_len;
+        }
+
+        if index < self.starting_of_gap {
+            self.buffer[starting_point..index]
+                .iter()
+                .map(|a| a.get_line_length_for_offset())
+                .sum::<usize>()
+                + page_index
+        } else {
+            let offset = index - self.starting_of_gap + 1;
+            let new_index = self.ending_of_gap + offset;
+
+            let sum_before_gap = self.buffer[starting_point..self.starting_of_gap]
+                .iter()
+                .map(|a| a.get_line_length_for_offset())
+                .sum::<usize>()
+                + page_index;
+            let starting_point_after_gap = if starting_point < self.starting_of_gap {
+                self.ending_of_gap + 1
+            } else {
+                starting_point
+            };
+            let sum_after_gap = self.buffer[starting_point_after_gap..new_index]
+                .iter()
+                .map(|a| a.get_line_length_for_offset())
+                .sum::<usize>();
+            sum_before_gap + sum_after_gap
+        }
+    }
     pub fn length(&self) -> usize {
         self.buffer.len() - ((self.ending_of_gap - self.starting_of_gap) + 1)
     }
@@ -453,7 +540,25 @@ impl LinesGapBuffer {
         }
         let starting = landmark_offset;
         let line_length = self.index(index).unwrap();
-        let ending = landmark_offset + self.index(index).unwrap().saturating_sub(1);
+        let ending = landmark_offset + line_length.saturating_sub(1);
+        (starting, ending, line_length > 0)
+    }
+    pub fn find_offsets_for_line_for_current_page(
+        &self,
+        index: usize,
+        page_start: usize,
+        page_index: usize,
+    ) -> (usize, usize, bool) {
+        let mut landmark_offset = page_index;
+
+        let mut starting = page_start;
+        while starting < index {
+            landmark_offset += self.index_for_offset(starting).unwrap_or_default();
+            starting += 1;
+        }
+        let starting = landmark_offset;
+        let line_length = self.index(index).unwrap();
+        let ending = landmark_offset + line_length.saturating_sub(1);
         (starting, ending, line_length > 0)
     }
     pub fn add_item(&mut self, index: usize) {
@@ -580,9 +685,7 @@ impl LinesGapBuffer {
             Some(self.buffer[new_index].type_of_line())
         }
     }
-    pub fn split_a_line_with_wrapping(&mut self, index: usize, cut_position: usize) -> Option<()> {
-        self.split_a_line(index, cut_position)
-    }
+
     pub fn split_a_line_due_to_word_wrap(
         &mut self,
         index: usize,
@@ -911,6 +1014,71 @@ impl LinesGapBuffer {
         }
         lines
     }
+    pub fn get_line_numbers_for_current_page(
+        &self,
+        page_start: usize,
+        page_height: usize,
+    ) -> Vec<Line<'_>> {
+        let mut page_height = page_height;
+        let mut line_number = page_start;
+        let mut lines = Vec::new();
+        let starting_point = if page_start < self.starting_of_gap {
+            page_start
+        } else {
+            let distance_from_ending = page_start - self.starting_of_gap + 1;
+            self.ending_of_gap + distance_from_ending
+        };
+        for i in starting_point..self.starting_of_gap {
+            match self.buffer[i].type_of_line() {
+                TypeOfLine::Parent => {
+                    lines.push(Line::raw(line_number.to_string()));
+                    line_number += 1;
+                }
+                TypeOfLine::Child => {
+                    lines.push(Line::raw(""));
+                }
+                TypeOfLine::Independent => {
+                    lines.push(Line::raw(line_number.to_string()));
+                    line_number += 1;
+                }
+                TypeOfLine::Terminator => {
+                    lines.push(Line::raw(""));
+                }
+            }
+            page_height -= 1;
+            if page_height == 0 {
+                return lines;
+            }
+        }
+        let starting_point_after_gap = if starting_point < self.starting_of_gap {
+            self.ending_of_gap + 1
+        } else {
+            starting_point
+        };
+        for i in starting_point_after_gap..self.length() {
+            match self.buffer[i].type_of_line() {
+                TypeOfLine::Parent => {
+                    lines.push(Line::raw(line_number.to_string()));
+                    line_number += 1;
+                }
+                TypeOfLine::Child => {
+                    lines.push(Line::raw(""));
+                }
+                TypeOfLine::Independent => {
+                    lines.push(Line::raw(line_number.to_string()));
+                    line_number += 1;
+                }
+                TypeOfLine::Terminator => {
+                    lines.push(Line::raw(""));
+                }
+            }
+            page_height -= 1;
+            if page_height == 0 {
+                return lines;
+            }
+        }
+        lines
+    }
     pub fn get_lines(&self) -> Vec<Line<'_>> {
         let mut lines = Vec::new();
         for line in self.buffer.iter().take(self.starting_of_gap) {
@@ -918,6 +1086,40 @@ impl LinesGapBuffer {
         }
         for line in self.buffer.iter().skip(self.ending_of_gap + 1) {
             lines.push(Line::raw(line.line()));
+        }
+        lines
+    }
+    pub fn get_lines_for_current_page(
+        &self,
+        page_start: usize,
+        page_height: usize,
+    ) -> Vec<Line<'_>> {
+        let mut page_height = page_height;
+        let mut lines = Vec::new();
+        let starting_point = if page_start < self.starting_of_gap {
+            page_start
+        } else {
+            let distance_from_ending = page_start - self.starting_of_gap + 1;
+            self.ending_of_gap + distance_from_ending
+        };
+        for i in starting_point..self.starting_of_gap {
+            lines.push(Line::raw(self.buffer[i].line()));
+            page_height -= 1;
+            if page_height == 0 {
+                return lines;
+            }
+        }
+        let starting_point_after_gap = if starting_point < self.starting_of_gap {
+            self.ending_of_gap + 1
+        } else {
+            starting_point
+        };
+        for i in starting_point_after_gap..self.length() {
+            lines.push(Line::raw(self.buffer[i].line()));
+            page_height -= 1;
+            if page_height == 0 {
+                return lines;
+            }
         }
         lines
     }

@@ -40,9 +40,22 @@ fn main() -> io::Result<()> {
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
     let text_representation = Rope::new(contents.clone());
+    let (initial_window_width, initial_window_height) = match size() {
+        Ok(dimensions) => dimensions,
+        Err(err) => {
+            println!("error occurred could not find window dimensions");
+            return Err(err);
+        }
+    };
 
     ratatui::run(|terminal| {
-        App::new(contents, text_representation, size().unwrap().0 as usize).run(terminal)
+        App::new(
+            contents,
+            text_representation,
+            initial_window_width as usize,
+            initial_window_height as usize,
+        )
+        .run(terminal)
     })?;
 
     // let content: Vec<&str> = contents.graphemes(true).collect::<Vec<&str>>();

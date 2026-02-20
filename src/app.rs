@@ -34,6 +34,8 @@ pub struct App<T: TextRepresentation> {
     window_width: usize,
     lines_text_editor: LinesGapBuffer,
     wrapping: bool,
+    page_index: usize,
+    page_start: usize,
 }
 #[derive(Default)]
 enum Mode {
@@ -44,8 +46,15 @@ enum Mode {
 }
 
 impl<T: TextRepresentation> App<T> {
-    pub fn new(starting_string: String, text_representation: T, initial_width: usize) -> Self {
-        let lines_text_editor = LinesGapBuffer::new(&starting_string, initial_width - 10);
+    pub fn new(
+        starting_string: String,
+        text_representation: T,
+        initial_window_width: usize,
+        initial_window_height: usize,
+    ) -> Self {
+        let window_height = initial_window_height - 5;
+        let window_width = initial_window_width - 10;
+        let lines_text_editor = LinesGapBuffer::new(&starting_string, window_width);
 
         Self {
             text_representation,
@@ -53,8 +62,8 @@ impl<T: TextRepresentation> App<T> {
             row_number: 0,
             column_number: 0,
             index: 0,
-            window_height: 0,
-            window_width: initial_width,
+            window_height,
+            window_width,
             cursor_up_and_down_column_position_locked: false,
             global_up_and_down_column_position: 0,
             undo_line_commands: vec![],
@@ -62,6 +71,8 @@ impl<T: TextRepresentation> App<T> {
             exit: false,
             mode: Mode::default(),
             wrapping: true,
+            page_start: 0,
+            page_index: 0,
         }
     }
     fn execute_line_command<C: TextEditorLineCommand + 'static>(&mut self, command: C) {
@@ -87,7 +98,13 @@ impl<T: TextRepresentation> App<T> {
                 ));
                 self.undo_line_commands.push(last_line_command);
             }
-            let (row, column) = self.lines_text_editor.find_where_rope_index_fits(new_index);
+            let (row, column) = self
+                .lines_text_editor
+                .find_where_rope_index_fits_for_current_page(
+                    self.page_start,
+                    new_index,
+                    self.page_index,
+                );
             if row == 0 && column == 0 {
                 self.column_number = 0;
                 self.column_number = 0;
@@ -109,7 +126,13 @@ impl<T: TextRepresentation> App<T> {
                 self.redo_line_commands.push(last_line_command);
             }
 
-            let (row, column) = self.lines_text_editor.find_where_rope_index_fits(new_index);
+            let (row, column) = self
+                .lines_text_editor
+                .find_where_rope_index_fits_for_current_page(
+                    self.page_start,
+                    new_index,
+                    self.page_index,
+                );
             if row == 0 && column == 0 {
                 self.column_number = 0;
                 self.column_number = 0;
@@ -134,41 +157,79 @@ impl<T: TextRepresentation> App<T> {
             self.global_up_and_down_column_position = self.column_number;
             self.cursor_up_and_down_column_position_locked = true;
         }
-        match self.lines_text_editor.index(self.row_number + 1) {
+        match self
+            .lines_text_editor
+            .index(self.page_start + self.row_number + 1)
+        {
             Some(next_line_length) => {
                 self.column_number = min(next_line_length, self.global_up_and_down_column_position);
+                if self.row_number + 1 >= self.window_height {
+                    self.scroll_one_line_down();
+                } else {
+                    self.row_number += 1;
+                }
             }
             None => {
                 return;
             }
         }
-        self.row_number = min(self.row_number + 1, self.lines_text_editor.length());
         let length_upto_non_inclusive_current_row = self
             .lines_text_editor
-            .length_up_to_non_inclusive_index(self.row_number);
-        self.index = length_upto_non_inclusive_current_row + self.column_number + self.row_number;
+            .length_up_to_non_inclusive_index_for_current_page(
+                self.page_start + self.row_number,
+                self.page_start,
+                self.page_index,
+            );
+        self.index = length_upto_non_inclusive_current_row + self.column_number;
+    }
+    fn scroll_one_line_down(&mut self) {
+        self.page_index += self
+            .lines_text_editor
+            .index_for_offset(self.page_start)
+            .unwrap_or_default();
+        self.page_start += 1;
+    }
+    fn scroll_one_line_up(&mut self) {
+        self.page_index = match self.lines_text_editor.index_for_offset(self.page_start - 1) {
+            Some(line_length) => self.page_index - line_length,
+            None => self.page_index,
+        };
+        self.page_start -= 1;
     }
     fn move_line_up(&mut self) {
         if !self.cursor_up_and_down_column_position_locked {
             self.global_up_and_down_column_position = self.column_number;
             self.cursor_up_and_down_column_position_locked = true;
         }
-        match self
-            .lines_text_editor
-            .index(self.row_number.saturating_sub(1))
-        {
-            Some(next_line_length) => {
-                self.column_number = min(next_line_length, self.global_up_and_down_column_position);
+        let previous_global_row_number = if self.row_number == 0 && self.page_start == 0 {
+            return;
+        } else {
+            self.row_number + self.page_start - 1
+        };
+        match self.lines_text_editor.index(previous_global_row_number) {
+            Some(previous_line_length) => {
+                self.column_number = min(
+                    previous_line_length,
+                    self.global_up_and_down_column_position,
+                );
             }
             None => {
                 self.column_number = 0;
             }
         }
-        self.row_number = self.row_number.saturating_sub(1);
+        if self.row_number == 0 {
+            self.scroll_one_line_up();
+        } else {
+            self.row_number -= 1;
+        }
         let length_upto_non_inclusive_current_row = self
             .lines_text_editor
-            .length_up_to_non_inclusive_index(self.row_number);
-        self.index = length_upto_non_inclusive_current_row + self.column_number + self.row_number;
+            .length_up_to_non_inclusive_index_for_current_page(
+                self.page_start + self.row_number,
+                self.page_start,
+                self.page_index,
+            );
+        self.index = length_upto_non_inclusive_current_row + self.column_number;
     }
     fn delete_char(&mut self) {
         if self.column_number == 0 && self.row_number == 0 {
@@ -181,15 +242,18 @@ impl<T: TextRepresentation> App<T> {
         if self.column_number == 0 && self.row_number > 0 {
             count_to_offset = self
                 .lines_text_editor
-                .index(self.row_number)
+                .index(self.page_start + self.row_number)
                 .unwrap_or_default();
-            self.execute_line_command(MergeLineCommand::new(self.row_number, count_to_offset));
+            self.execute_line_command(MergeLineCommand::new(
+                self.page_start + self.row_number,
+                count_to_offset,
+            ));
         } else {
             let (starting, ending, should_offset) = self
                 .lines_text_editor
-                .find_offsets_for_line(self.row_number);
+                .find_offsets_for_line(self.page_start + self.row_number);
             self.execute_line_command(RemoveFromLineCommand::new(
-                self.row_number,
+                self.page_start + self.row_number,
                 1,
                 (starting, ending),
                 should_offset,
@@ -205,15 +269,15 @@ impl<T: TextRepresentation> App<T> {
             .insert(value.to_string(), self.index);
         let offsets = self
             .lines_text_editor
-            .find_offsets_for_line(self.row_number);
+            .find_offsets_for_line(self.page_start + self.row_number);
         let content_to_be_logged = format!("bounds are {} {}", offsets.0, offsets.1);
 
         fs::write("log.txt", content_to_be_logged).unwrap();
         let (starting, ending, should_offset) = self
             .lines_text_editor
-            .find_offsets_for_line(self.row_number);
+            .find_offsets_for_line(self.page_start + self.row_number);
         self.execute_line_command(InsertIntoLineCommand::new(
-            self.row_number,
+            self.page_start + self.row_number,
             1,
             (starting, ending),
             should_offset,
@@ -227,16 +291,24 @@ impl<T: TextRepresentation> App<T> {
     }
     fn move_right_due_to_paste(&mut self, length: usize, final_index: usize) {
         self.index = final_index;
-        self.column_number += length;
         let (starting, ending, should_offset) = self
             .lines_text_editor
-            .find_offsets_for_line(self.row_number);
+            .find_offsets_for_line(self.page_start + self.row_number);
         self.execute_line_command(InsertIntoLineCommand::new(
-            self.row_number,
+            self.page_start + self.row_number,
             length,
             (starting, ending),
             should_offset,
         ));
+        let (row, column) = self
+            .lines_text_editor
+            .find_where_rope_index_fits_for_current_page(
+                self.page_start,
+                final_index,
+                self.page_index,
+            );
+        self.column_number = column;
+        self.row_number = row;
     }
 
     fn jump_to_new_line(&mut self) {
@@ -263,10 +335,12 @@ impl<T: TextRepresentation> App<T> {
             if self.row_number > 0 {
                 self.column_number = self
                     .lines_text_editor
-                    .index(self.row_number - 1)
+                    .index(self.page_start + self.row_number - 1)
                     .unwrap_or_default()
                     .saturating_sub(offset);
                 self.row_number -= 1;
+            } else if self.page_start > 0 {
+                self.scroll_one_line_up();
             }
         } else {
             let cursor_moved_left = self.column_number - 1;
