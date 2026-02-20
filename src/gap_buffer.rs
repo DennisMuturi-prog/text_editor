@@ -870,30 +870,54 @@ impl LinesGapBuffer {
     pub fn starting_of_gap(&self) -> usize {
         self.starting_of_gap
     }
-    pub fn get_lines(&self) -> Vec<Line<'_>> {
+    pub fn get_line_numbers(&self) -> Vec<Line<'_>> {
         let mut line_number = 1;
         let mut lines = Vec::new();
         for line in self.buffer.iter().take(self.starting_of_gap) {
             match line.type_of_line() {
                 TypeOfLine::Parent => {
-                    lines.push(Line::raw(format!("{} {}", line_number, line.line())));
+                    lines.push(Line::raw(line_number.to_string()));
                     line_number += 1;
                 }
                 TypeOfLine::Child => {
-                    lines.push(Line::raw(line.line()));
+                    lines.push(Line::raw(""));
                 }
                 TypeOfLine::Independent => {
-                    lines.push(Line::raw(format!("{} {}", line_number, line.line())));
+                    lines.push(Line::raw(line_number.to_string()));
                     line_number += 1;
                 }
                 TypeOfLine::Terminator => {
-                    lines.push(Line::raw(line.line()));
+                    lines.push(Line::raw(""));
                 }
             }
         }
         for line in self.buffer.iter().skip(self.ending_of_gap + 1) {
-            lines.push(Line::raw(format!("{} {}", line_number, line.line())));
-            line_number += 1;
+            match line.type_of_line() {
+                TypeOfLine::Parent => {
+                    lines.push(Line::raw(line_number.to_string()));
+                    line_number += 1;
+                }
+                TypeOfLine::Child => {
+                    lines.push(Line::raw(""));
+                }
+                TypeOfLine::Independent => {
+                    lines.push(Line::raw(line_number.to_string()));
+                    line_number += 1;
+                }
+                TypeOfLine::Terminator => {
+                    lines.push(Line::raw(""));
+                }
+            }
+        }
+        lines
+    }
+    pub fn get_lines(&self) -> Vec<Line<'_>> {
+        let mut lines = Vec::new();
+        for line in self.buffer.iter().take(self.starting_of_gap) {
+            lines.push(Line::raw(line.line()));
+        }
+        for line in self.buffer.iter().skip(self.ending_of_gap + 1) {
+            lines.push(Line::raw(line.line()));
         }
         lines
     }

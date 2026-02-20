@@ -3,7 +3,7 @@ use std::{cmp::min, fs, io};
 use ratatui::{
     DefaultTerminal, Frame,
     crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
-    layout::{Constraint, Direction, Layout, Position},
+    layout::{Alignment, Constraint, Direction, Layout, Position},
     prelude::Rect,
     style::{Color, Style},
     text::{Line, Span, Text},
@@ -45,7 +45,7 @@ enum Mode {
 
 impl<T: TextRepresentation> App<T> {
     pub fn new(starting_string: String, text_representation: T, initial_width: usize) -> Self {
-        let lines_text_editor = LinesGapBuffer::new(&starting_string, initial_width);
+        let lines_text_editor = LinesGapBuffer::new(&starting_string, initial_width - 10);
 
         Self {
             text_representation,
@@ -312,6 +312,9 @@ impl<T: TextRepresentation> App<T> {
         let title_block = Block::default()
             .borders(Borders::ALL)
             .style(Style::default());
+        let line_numbers_block = Block::default()
+            .borders(Borders::RIGHT)
+            .style(Style::default());
 
         let title = Paragraph::new(Text::styled(
             "Text editor",
@@ -319,16 +322,24 @@ impl<T: TextRepresentation> App<T> {
         ))
         .block(title_block.clone());
         frame.render_widget(title, chunks[0]);
+        let text_section = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Length(5), Constraint::Min(1)])
+            .split(chunks[1]);
 
-        let text_content = Paragraph::new(self.lines_text_editor.get_lines()).block(title_block);
-        frame.render_widget(text_content, chunks[1]);
+        let line_numbers = Paragraph::new(self.lines_text_editor.get_line_numbers())
+            .block(line_numbers_block)
+            .alignment(Alignment::Right);
+        let text_content = Paragraph::new(self.lines_text_editor.get_lines());
+        frame.render_widget(text_content, text_section[1]);
+        frame.render_widget(line_numbers, text_section[0]);
         if let Mode::Editing = self.mode {
             frame.set_cursor_position(Position::new(
                 // Draw the cursor at the current position in the input field.
                 // This position is can be controlled via the left and right arrow key
-                chunks[1].x + self.column_number as u16 + 1,
+                text_section[1].x + self.column_number as u16,
                 // Move one line down, from the border to the input line
-                chunks[1].y + 1 + self.row_number as u16,
+                text_section[1].y + self.row_number as u16,
             ))
         }
         let footer_chunks = Layout::default()

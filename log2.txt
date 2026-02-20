@@ -2,54 +2,42 @@ the line gap buffer
  [
     TextEditorLine {
         line: "",
-        type_of_line: Parent,
-        land_mark_offset: Some(
-            0,
-        ),
+        type_of_line: Independent,
     },
     TextEditorLine {
-        line: "sdsdsd dfdfdfdfdf dffdf dfd",
+        line: "sdsdsd dddddddddddd",
         type_of_line: Parent,
-        land_mark_offset: None,
     },
     TextEditorLine {
-        line: "dfdfdfdfdfdfdfdf",
-        type_of_line: Parent,
-        land_mark_offset: None,
+        line: "f",
+        type_of_line: Terminator,
     },
     TextEditorLine {
         line: "",
-        type_of_line: Parent,
-        land_mark_offset: None,
+        type_of_line: Independent,
     },
     TextEditorLine {
         line: "",
-        type_of_line: Parent,
-        land_mark_offset: None,
+        type_of_line: Independent,
     },
     TextEditorLine {
         line: "",
-        type_of_line: Parent,
-        land_mark_offset: None,
+        type_of_line: Independent,
     },
     TextEditorLine {
         line: "",
-        type_of_line: Parent,
-        land_mark_offset: None,
+        type_of_line: Independent,
     },
     TextEditorLine {
-        line: "dsdsd",
-        type_of_line: Parent,
-        land_mark_offset: None,
+        line: "dsdsdf",
+        type_of_line: Independent,
     },
     TextEditorLine {
         line: "sdsdsd",
-        type_of_line: Parent,
-        land_mark_offset: None,
+        type_of_line: Independent,
     },
     TextEditorLine {
         line: "sdsds",
-        type_of_line: Parent,
-        land_mark_offset: None,
+        type_of_line: Independent,
     },
-] and the start is 3 and ending is 6
+] and the start is 2 and ending is 6
